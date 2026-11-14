@@ -1,0 +1,729 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Transição</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: wireframe-fidelity mobile app — one 460px column, sticky status bar on top, five tabs fixed at the bottom */
+:root{
+  --bg:#EEF2F3; --card:#FFFFFF; --ink:#13212B; --muted:#5B6C76; --line:#D3DCE0; --soft:#E6ECEF;
+  --accent:#1F6FD1; --accent-bg:#E3EEFB; --on-ink:#FFFFFF;
+  --good:#2C855A; --warn:#A87410; --bad:#C2352B; --swim:#1B7DA3; --bike:#B9800F; --run:#D9442B;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D1418; --card:#152027; --ink:#E7EEF1; --muted:#94A6AF; --line:#2A3942; --soft:#1C2A32;
+  --accent:#5A9DF0; --accent-bg:#17304F; --on-ink:#0D1418;
+  --good:#5CC48B; --warn:#E6B04B; --bad:#FF6C5F; --swim:#4DB4DA; --bike:#E6B04B; --run:#FF6B4E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1418; --card:#152027; --ink:#E7EEF1; --muted:#94A6AF; --line:#2A3942; --soft:#1C2A32;
+  --accent:#5A9DF0; --accent-bg:#17304F; --on-ink:#0D1418;
+  --good:#5CC48B; --warn:#E6B04B; --bad:#FF6C5F; --swim:#4DB4DA; --bike:#E6B04B; --run:#FF6B4E; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--card)}
+.wrap{max-width:460px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px calc(92px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
+.bar-in{max-width:460px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px 10px}
+.bar-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.bar-top b{font-size:17px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.meters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:8px}
+.meter span{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.meter span b{color:var(--ink);font-family:var(--mono);font-weight:600}
+.track{height:6px;border-radius:3px;background:var(--soft);overflow:hidden;margin-top:3px}
+.track i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs .in{max-width:460px;margin:0 auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs button{background:none;border:0;padding:12px 2px 14px;font:13px var(--body);color:var(--muted);cursor:pointer;position:relative}
+nav.tabs button[aria-current="page"]{color:var(--ink);font-weight:700}
+nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+nav.tabs .dot{display:inline-block;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--bad);color:#fff;font:600 10px/16px var(--mono);margin-left:3px;vertical-align:1px}
+h1{font-size:22px;margin:0;line-height:1.2;text-wrap:balance}
+h2{font-size:17px;margin:0;line-height:1.25}
+.lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.muted{color:var(--muted)} .small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card.acc,.opt.acc{border:2px solid var(--accent);background:var(--accent-bg)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.btn{font:700 15px var(--body);border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:11px 14px;cursor:pointer;text-align:center}
+.btn.primary{background:var(--ink);color:var(--on-ink);border-color:var(--ink);width:100%;padding:14px}
+.btn.sm{font-size:13px;padding:7px 10px;font-weight:600}
+.btn:focus-visible,select:focus-visible,input:focus-visible,nav.tabs button:focus-visible,.seg button:focus-visible,.opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}
+.seg.two{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}
+.seg button{font:15px var(--body);padding:10px 4px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{border:2px solid var(--accent);background:var(--accent-bg);font-weight:700;padding:9px 3px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
+input[type=text],input[type=number],select{font:16px var(--body);color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 12px;width:100%}
+.err{color:var(--bad);font-size:13px}
+.opt{display:flex;flex-direction:column;gap:3px;text-align:left;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:12px;cursor:pointer;font:inherit;color:inherit;width:100%}
+.opt b{font-size:15px}
+.day{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:8px;border:1px solid var(--line);border-left:4px solid var(--sp,var(--line));border-radius:9px;background:var(--card);padding:4px 10px 4px 10px;min-height:46px}
+.day.race{border:2px solid var(--accent);background:var(--accent-bg);border-left-width:4px}
+.day .d{font-weight:700}
+.day select{border:0;background:transparent;padding:8px 2px;font-size:15px;appearance:auto;min-width:0}
+.day .r{font-size:12px;text-align:right;line-height:1.2}
+.days{display:flex;flex-direction:column;gap:7px}
+.sp-swim{--sp:var(--swim)} .sp-bike{--sp:var(--bike)} .sp-run{--sp:var(--run)} .sp-gen{--sp:var(--line)}
+.chip{display:inline-block;font:600 11px var(--mono);padding:2px 7px;border-radius:5px;background:var(--soft);color:var(--muted)}
+.chip.acc{background:var(--accent-bg);color:var(--accent)} .chip.good{color:var(--good)} .chip.bad{color:var(--bad)} .chip.warn{color:var(--warn)}
+.msg{border-left:4px solid var(--accent);padding:10px 12px;background:var(--card);border-radius:0 9px 9px 0;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.msg.done{border-left-color:var(--line)}
+.lb{display:flex;flex-direction:column}
+.lb .it{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;padding:8px 8px;border-radius:7px;align-items:center}
+.lb .it.me{background:var(--accent-bg);font-weight:700}
+.lb .it .n{font-family:var(--mono);color:var(--muted)}
+.lb .it .t{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.attr{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:2px 10px;align-items:center;font-size:14px}
+.attr .v{font-family:var(--mono);font-weight:600;text-align:right}
+.attr .track{grid-column:1/-1;margin:0}
+.big{font-size:52px;font-weight:700;line-height:1}
+.splits{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.splits div{border:1px solid var(--line);border-radius:7px;padding:6px 2px;text-align:center}
+.splits span{display:block;font-size:11px;color:var(--muted)}
+.splits b{font-family:var(--mono);font-size:12.5px;font-weight:600}
+.feed{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.feed div{padding:7px 10px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--sp,var(--line));border-radius:0 7px 7px 0}
+.feed div:last-child{animation:in .3s ease-out}
+@keyframes in{from{transform:translateX(-6px)}to{transform:none}}
+@media (prefers-reduced-motion:reduce){.feed div:last-child{animation:none}}
+.dots{display:flex;gap:5px}
+.dots i{width:22px;height:22px;border-radius:50%;background:var(--soft);border:1px solid var(--line);display:inline-block}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--soft)}
+.item:last-child{border-bottom:0}
+.flash{background:var(--accent-bg);border:1px solid var(--accent);border-radius:9px;padding:10px 12px;font-size:14px}
+.file{position:relative;overflow:hidden}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.code{font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:1px}
+</style>
+
+<div id="bar"></div>
+<main class="wrap" id="app"></main>
+<nav class="tabs" id="tabs" aria-label="Secções"></nav>
+
+<script>
+const KEY='transicao-save-v2';
+const DAYS=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+const DAYL=['segunda','terça','quarta','quinta','sexta','sábado','domingo'];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const gauss=()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+const eur=n=>Math.round(n).toLocaleString('pt-PT')+' €';
+const fmt=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')};
+const pace=s=>{s=Math.round(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const dec=(n,d=1)=>n.toFixed(d).replace('.',',');
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const AG=a=>a<25?'18–24':a>=70?'70+':(Math.floor(a/5)*5)+'–'+(Math.floor(a/5)*5+4);
+
+const ATTR={swimTec:['Técnica','swim'],swimEnd:['Resistência','swim'],bikePow:['Potência','bike'],bikeEnd:['Resistência','bike'],runSpd:['Velocidade','run'],runEnd:['Resistência','run'],trans:['Transições','gen'],str:['Força','gen'],mental:['Mental','gen']};
+const SPN={swim:'Natação',bike:'Ciclismo',run:'Corrida',gen:'Geral'};
+const SESS={
+  rest:{n:'Descanso',sp:'gen',load:0,cost:0,min:0,g:{}},
+  swimTec:{n:'Natação · técnica',sp:'swim',load:35,cost:4,min:45,g:{swimTec:1.6,swimEnd:.4}},
+  swimEnd:{n:'Natação · volume',sp:'swim',load:50,cost:4,min:60,g:{swimEnd:1.5,swimTec:.5}},
+  bikeZ2:{n:'Bike · Z2 longa',sp:'bike',load:70,cost:0,min:150,g:{bikeEnd:1.5,bikePow:.4}},
+  bikeInt:{n:'Bike · intervalos',sp:'bike',load:75,cost:0,min:75,g:{bikePow:1.6,bikeEnd:.3}},
+  runZ2:{n:'Corrida · Z2',sp:'run',load:50,km:10,cost:0,min:60,g:{runEnd:1.2,runSpd:.3}},
+  runInt:{n:'Corrida · séries',sp:'run',load:70,km:10,cost:0,min:55,g:{runSpd:1.4,runEnd:.3}},
+  brick:{n:'Brick · bike + corrida',sp:'run',load:80,km:5,cost:0,min:90,g:{trans:1.6,bikeEnd:.6,runEnd:.5}},
+  str:{n:'Força',sp:'gen',load:30,cost:0,min:45,g:{str:1.8}}
+};
+const PRESETS={'Típica':['str','runInt','brick','swimTec','rest','runZ2','bikeZ2'],'Carga':['swimEnd','runInt','bikeInt','swimTec','runZ2','brick','bikeZ2'],'Taper':['swimTec','runZ2','rest','swimTec','bikeZ2','rest','rest']};
+const DIST={sprint:{swim:750,bike:20,run:5,l:'Sprint'},olimp:{swim:1500,bike:40,run:10,l:'Olímpico'},meia:{swim:1900,bike:90,run:21.1,l:'Meia distância'}};
+const GELS={sprint:0,olimp:2,meia:6};
+const RT={sprint:{prize:1,fame:1,pts:1,fat:12},olimp:{prize:1.6,fame:1.4,pts:1.5,fat:20},meia:{prize:3,fame:2.2,pts:2.5,fat:32}};
+const CAL=[
+  {id:'povoa',w:3,n:'Sprint da Póvoa',t:'sprint',temp:17,fee:30,lvl:46,nM:46,nF:24},
+  {id:'viana',w:6,n:'Olímpico de Viana',t:'olimp',temp:18,fee:55,lvl:50,nM:58,nF:30},
+  {id:'aveiro',w:9,n:'Sprint de Aveiro',t:'sprint',temp:20,fee:30,lvl:50,nM:50,nF:28},
+  {id:'lisboa',w:12,n:'Olímpico de Lisboa',t:'olimp',temp:21,fee:65,lvl:54,nM:70,nF:40,slot:1},
+  {id:'iberica',w:16,n:'Taça Ibérica · Olímpico',t:'olimp',temp:23,fee:90,lvl:62,nM:60,nF:36,minPts:60,slot:2},
+  {id:'algarve',w:20,n:'Meia distância do Algarve',t:'meia',temp:24,fee:150,lvl:58,nM:60,nF:34,needSlot:true,altPts:120}
+];
+const CLUBS=[
+  {id:'pacos',n:'Paços Run Club',members:312,ev:{d:1,t:'Corrida de grupo · ter 19h',where:'Junto ao rio',sp:'run'}},
+  {id:'porto',n:'Porto Runners Crew',members:840,ev:{d:2,t:'Corrida de grupo · qua 19h30',where:'Ribeira',sp:'run'}},
+  {id:'aveiro',n:'Tri Clube de Aveiro',members:95,ev:{d:3,t:'Treino de bike · qui 7h',where:'Costa Nova',sp:'bike'}},
+  {id:'lisboa',n:'Lisboa Night Runners',members:1200,ev:{d:1,t:'Corrida noturna · ter 21h',where:'Ribeira das Naus',sp:'run'}}
+];
+const OTHER_CLUBS=['Douro Runners','Minho Tri Team','Costa Verde Run Club','Serra Endurance','Vale do Sousa Runners'];
+const SHOP=[
+  {id:'aero',cat:'Bike',n:'Bike aero de carbono',p:2400,d:'+3% de velocidade na bike'},
+  {id:'tt',cat:'Bike',n:'Bike de contrarrelógio',p:4600,d:'+6% de velocidade na bike (substitui a aero)'},
+  {id:'wheels',cat:'Bike',n:'Rodas de perfil alto',p:1200,d:'+2% de velocidade na bike'},
+  {id:'helmet',cat:'Bike',n:'Capacete aero',p:240,d:'+1% de velocidade na bike'},
+  {id:'wsBasic',cat:'Natação',n:'Fato isotérmico básico',p:180,d:'−4% a nadar em água abaixo de 22 °C'},
+  {id:'wsPro',cat:'Natação',n:'Fato isotérmico premium',p:560,d:'−6% em água fria e T1 mais rápida'},
+  {id:'shoes',cat:'Corrida',n:'Sapatilhas de treino novas',p:140,d:'O contador de km das sapatilhas volta a 0',once:true},
+  {id:'carbon',cat:'Corrida',n:'Sapatilhas de carbono',p:260,d:'−1,5% no ritmo de corrida em prova'},
+  {id:'pm',cat:'Tecnologia',n:'Potenciómetro',p:620,d:'+15% nos ganhos dos treinos de bike'},
+  {id:'trainer',cat:'Tecnologia',n:'Rolo inteligente',p:900,d:'+10% nos ganhos de bike; a chuva deixa de estragar treinos'},
+  {id:'coach',cat:'Serviços',n:'Treinador online',p:45,sub:true,d:'45 € por semana · +20% em todos os ganhos'},
+  {id:'massage',cat:'Serviços',n:'Massagem desportiva',p:50,once:true,d:'−15 de fadiga já'},
+  {id:'nutri',cat:'Serviços',n:'Consulta de nutrição',p:90,d:'Passas a saber quantos géis levar em cada prova'}
+];
+const SPONSORS=[
+  {id:'pista',n:'Pista Café',minFame:12,weekly:40,weeks:12,podium:50,d:'O café da terra. Paga pouco, mas acredita em ti.'},
+  {id:'mare',n:'Maré Nutrição',minFame:20,weekly:80,weeks:12,podium:100,d:'Géis e barras. Querem fotos tuas com o produto.'},
+  {id:'granito',n:'Granito Seguros',minFame:32,weekly:150,weeks:16,podium:200,req:.3,d:'Exigem que acabes no top 30% da tua categoria em todas as provas.'},
+  {id:'vento',n:'Vento Norte Bikes',minFame:45,weekly:120,weeks:20,podium:150,disc:.3,d:'Dão 30% de desconto em bikes e rodas.'},
+  {id:'atlas',n:'Atlas Energia',minFame:65,weekly:350,weeks:20,podium:400,d:'Marca nacional. Isto já é vida de profissional.'}
+];
+const FN_M=['Rui','Tiago','Pedro','Hugo','André','Nuno','João','Miguel','Diogo','Bruno','Iker','Pablo','Sérgio','Marco','Luís','Ricardo','Vasco','Gonçalo','Álvaro','Jorge','Fábio','Daniel','Hélder','Carlos','Mateo'];
+const FN_F=['Ana','Marta','Rita','Joana','Inês','Sofia','Catarina','Beatriz','Carla','Sara','Lúcia','Teresa','Lara','Mafalda','Patrícia','Raquel','Laia','Lucía','Carmen','Elena','Filipa','Diana','Helena','Cláudia','Vera'];
+const LAST=['Silva','Costa','Ferreira','Moreira','Pinto','Sousa','Lopes','Gomes','Ribeiro','Teixeira','Vieira','Castro','García','López','Ruiz','Navarro','Alves','Mendes','Barros','Freitas','Rocha','Campos','Araújo','Faria'];
+const nameFor=cat=>pick(cat==='F'?FN_F:FN_M)+' '+pick(LAST);
+const PROFILES={
+  runner:{n:'Corredor que quer experimentar',a:{swimTec:24,swimEnd:28,bikePow:40,bikeEnd:45,runSpd:64,runEnd:62,trans:35,str:38,mental:65}},
+  cyclist:{n:'Ciclista de fim de semana',a:{swimTec:26,swimEnd:30,bikePow:60,bikeEnd:70,runSpd:42,runEnd:46,trans:38,str:40,mental:65}},
+  swimmer:{n:'Ex-nadador',a:{swimTec:70,swimEnd:68,bikePow:40,bikeEnd:44,runSpd:46,runEnd:46,trans:40,str:45,mental:60}}
+};
+const FILINTO={a:{swimTec:32,swimEnd:36,bikePow:52,bikeEnd:78,runSpd:70,runEnd:74,trans:55,str:42,mental:85},ctl:330,fatigue:42,shoeKm:241,
+  gear:[['GIANT · estrada, 7 kg','2171 km'],['TREK · estrada, 8 kg','509 km'],['Adios Pro 4 · prova','108 km'],['Invincible Run 3 (2) · treino','sapatilhas ativas'],['Crocs Faísca McQueen','+2 moral por semana']],carbon:true,crocs:true};
+
+const EVENTS={
+  jantar:{t:'Jantar de anos de um amigo',x:'Sábado à noite, véspera do treino longo.',o:[['Ir ao jantar',s=>{s.moral+=12;s.fatigue+=5;return'Noite boa. As pernas amanhã vão queixar-se.'}],['Ficar em casa',s=>{s.moral-=6;return'Dormiste 9 horas. O grupo do WhatsApp não perdoa.'}]]},
+  furo:{t:'Furo a caminho do trabalho',x:'Pneu da bike rasgado.',o:[['Pneu novo (35 €)',s=>{s.money-=35;return'Pneu novo montado.'}],['Remendar e rezar',s=>{if(Math.random()<.4){s.money-=60;return'Furou outra vez e levou a câmara e a fita de jante: 60 €.'}return'Aguentou. Por agora.'}]]},
+  jornal:{t:'O jornal local quer uma entrevista',x:'"A triatleta da terra que não pára."',minFame:15,o:[['Aceitar',s=>{s.fame+=4;s.fatigue+=2;return'Saíste na página 7. +4 fama.'}],['Recusar',s=>'Ficaste a treinar. Ninguém soube.']]},
+  chuva:{t:'Previsão: chuva a semana toda',x:'Norte de Portugal em modo outono.',o:[['Paciência',s=>{s.rain=true;return s.owned.trainer?'Tens rolo. A bike vai para dentro de casa.':'Os treinos de bike na rua rendem menos esta semana.'}]]},
+  pista:{t:'O teu clube marca um treino de pista',x:'Séries de 400 m com os mais rápidos do clube.',o:[['Ir',s=>{s.a.runSpd=Math.min(99,s.a.runSpd+.7);s.fatigue+=6;s.fame+=1;return'Aguentaste o grupo da frente. +0,7 velocidade.'}],['Ficar',s=>'Fica para a próxima.']]},
+  viral:{t:'O teu treino ficou viral',x:'Alguém partilhou o teu mapa em forma de bicicleta.',o:[['Responder aos kudos',s=>{s.fame+=3;s.moral+=4;return'+3 fama.'}]]},
+  extra:{t:'Pedem-te horas extra no trabalho',x:'O chefe precisa de ajuda esta semana.',job:true,o:[['Aceitar (+120 €)',s=>{s.money+=120;s.fatigue+=8;return'Mais 120 € e menos horas de sono.'}],['Recusar',s=>{s.moral-=2;return'O chefe torceu o nariz.'}]]},
+  sono:{t:'Noite mal dormida',x:'O vizinho resolveu fazer obras às 7h.',o:[['Sesta à tarde',s=>{s.fatigue-=4;return'Sesta de 40 minutos. Salvo.'}],['Café duplo',s=>{s.money-=2;s.fatigue+=3;return'Funcionou. Mais ou menos.'}]]}
+};
+
+let S;
+const initState=()=>({v:2,created:false,ob:{name:'',cat:'F',age:'',city:'',club:'pacos',start:'preset',preset:'runner',imp:null,err:{}}});
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
+
+/* ---------- file import ---------- */
+function hav(a,b){const R=6371,t=Math.PI/180,dl=(b[0]-a[0])*t,dn=(b[1]-a[1])*t,x=Math.sin(dl/2)**2+Math.cos(a[0]*t)*Math.cos(b[0]*t)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+function sportFrom(txt,kmh){txt=(txt||'').toLowerCase();
+  if(/swim|nata/.test(txt))return'swim';if(/bik|cycl|ride|ciclis/.test(txt))return'bike';if(/run|corr/.test(txt))return'run';if(/train|strength|weight|forç/.test(txt))return'str';
+  if(kmh>=15)return'bike';if(kmh>=5.5)return'run';return'other'}
+function parseGPX(txt){
+  const doc=new DOMParser().parseFromString(txt,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length)throw new Error('GPX ilegível');
+  const pts=[...doc.getElementsByTagName('trkpt')];if(!pts.length)throw new Error('GPX sem pontos');
+  let km=0,prev=null;const hrs=[],times=[];
+  for(const p of pts){const c=[+p.getAttribute('lat'),+p.getAttribute('lon')];if(prev)km+=hav(prev,c);prev=c;
+    for(const e of p.getElementsByTagName('*')){if(e.localName==='hr')hrs.push(+e.textContent);if(e.localName==='time')times.push(Date.parse(e.textContent))}}
+  const t0=times[0],t1=times[times.length-1],sec=(t1-t0)/1000;
+  const typ=(doc.getElementsByTagName('type')[0]||{}).textContent||(doc.getElementsByTagName('name')[0]||{}).textContent;
+  return[{sport:sportFrom(typ,km/(sec/3600)),start:t0||null,sec,km,hr:hrs.length?hrs.reduce((a,b)=>a+b,0)/hrs.length:null}];
+}
+function parseTCX(txt){
+  const doc=new DOMParser().parseFromString(txt,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length)throw new Error('TCX ilegível');
+  const kid=(el,n)=>[...el.children].find(c=>c.localName===n);
+  return[...doc.getElementsByTagName('Activity')].map(a=>{
+    const laps=[...a.getElementsByTagName('Lap')];let sec=0,m=0,hrs=0,hrw=0;
+    for(const l of laps){const t=+(kid(l,'TotalTimeSeconds')||{}).textContent||0,d=+(kid(l,'DistanceMeters')||{}).textContent||0;sec+=t;m+=d;
+      const ah=kid(l,'AverageHeartRateBpm');if(ah){const v=+(kid(ah,'Value')||{}).textContent;if(v){hrs+=v*t;hrw+=t}}}
+    const start=Date.parse(laps[0]?laps[0].getAttribute('StartTime'):(a.getElementsByTagName('Id')[0]||{}).textContent);
+    return{sport:sportFrom(a.getAttribute('Sport'),m/1000/(sec/3600)),start:start||null,sec,km:m/1000,hr:hrw?hrs/hrw:null};
+  });
+}
+function parseFIT(buf){
+  const dv=new DataView(buf),hs=dv.getUint8(0),size=dv.getUint32(4,true);
+  if(String.fromCharCode(dv.getUint8(8),dv.getUint8(9),dv.getUint8(10),dv.getUint8(11))!=='.FIT')throw new Error('não é um ficheiro FIT');
+  const end=Math.min(hs+size,dv.byteLength),defs={},out=[];let p=hs;
+  const rd=(p,sz,ty,le)=>{const inv=(v,i)=>v===i?null:v;
+    if((ty===0||ty===2||ty===10||ty===13)&&sz===1)return inv(dv.getUint8(p),0xFF);
+    if((ty===4||ty===11)&&sz===2)return inv(dv.getUint16(p,le),0xFFFF);
+    if((ty===6||ty===12)&&sz===4)return inv(dv.getUint32(p,le),0xFFFFFFFF);
+    if(ty===3&&sz===2)return dv.getInt16(p,le);if(ty===5&&sz===4)return dv.getInt32(p,le);return null};
+  while(p<end){
+    const h=dv.getUint8(p++);
+    if(!(h&0x80)&&(h&0x40)){
+      const local=h&15,dev=h&0x20;p++;const le=dv.getUint8(p++)===0,g=dv.getUint16(p,le);p+=2;const nf=dv.getUint8(p++),fields=[];
+      for(let i=0;i<nf;i++){fields.push([dv.getUint8(p),dv.getUint8(p+1),dv.getUint8(p+2)&31]);p+=3}
+      let ds=0;if(dev){const nd=dv.getUint8(p++);for(let i=0;i<nd;i++){ds+=dv.getUint8(p+1);p+=3}}
+      defs[local]={g,le,fields,ds};
+    }else{
+      const local=h&0x80?(h>>5)&3:h&15,d=defs[local];if(!d)throw new Error('FIT inválido');
+      const r={};for(const[n,sz,ty]of d.fields){r[n]=rd(p,sz,ty,d.le);p+=sz}p+=d.ds;
+      if(d.g===18)out.push(r);
+    }
+  }
+  if(!out.length)throw new Error('FIT sem resumo de sessão');
+  return out.map(r=>({sport:{1:'run',2:'bike',5:'swim',4:'str',10:'str'}[r[5]]||'other',start:r[2]!=null?(r[2]+631065600)*1000:null,sec:(r[7]!=null?r[7]:r[8]||0)/1000,km:(r[9]||0)/100000,hr:r[16]||null}));
+}
+async function readFiles(list){
+  const acts=[],errs=[];
+  for(const f of list){
+    const ext=f.name.split('.').pop().toLowerCase();
+    try{
+      if(ext==='fit')acts.push(...parseFIT(await f.arrayBuffer()));
+      else if(ext==='gpx')acts.push(...parseGPX(await f.text()));
+      else if(ext==='tcx')acts.push(...parseTCX(await f.text()));
+      else errs.push(`${f.name}: formato não suportado`);
+    }catch(e){errs.push(`${f.name}: ${e.message}`)}
+  }
+  return{acts:acts.filter(a=>a.sec>60&&a.sport!=='other'),errs};
+}
+function sampleActs(){
+  const now=Date.now(),day=864e5,list=[];
+  for(let w=0;w<6;w++){const b=now-w*7*day;
+    list.push({sport:'run',start:b-5*day,sec:3300,km:10.1,hr:146},{sport:'run',start:b-day,sec:6400,km:19.5,hr:142},{sport:'run',start:b-3*day,sec:2700,km:9,hr:163},
+      {sport:'bike',start:b-2*day,sec:7200,km:56,hr:132},{sport:'swim',start:b-4*day,sec:2100,km:1.5,hr:null})}
+  return list;
+}
+function classify(act,a,age){
+  const min=act.sec/60,hrmax=age?208-.7*age:188,kmh=act.km/(act.sec/3600);
+  if(act.sport==='swim')return min>=40||act.km>=2?'swimEnd':'swimTec';
+  if(act.sport==='str')return'str';
+  if(act.sport==='bike'){const spd=43-(90-(.7*a.bikePow+.3*a.bikeEnd))*.31;const hi=act.hr?act.hr>=.82*hrmax:kmh>=spd*.95;return hi&&min<110?'bikeInt':'bikeZ2'}
+  if(act.sport==='run'){const rp=185+(90-(.6*a.runSpd+.4*a.runEnd))*4.7;const hi=act.hr?act.hr>=.85*hrmax:act.sec/act.km<=rp*1.1;return hi?'runInt':'runZ2'}
+  return null;
+}
+function attrsFromActs(acts){
+  const runs=acts.filter(a=>a.sport==='run'&&a.km>=3),rides=acts.filter(a=>a.sport==='bike'&&a.km>=15),swims=acts.filter(a=>a.sport==='swim'&&a.km>0);
+  const a={swimTec:30,swimEnd:30,bikePow:40,bikeEnd:40,runSpd:45,runEnd:45,trans:42,str:36,mental:60};
+  if(runs.length){const best=Math.min(...runs.map(r=>r.sec/r.km))*.92;a.runSpd=clamp(90-(best-185)/4.7,15,92);a.runEnd=clamp(30+Math.max(...runs.map(r=>r.km))*1.1,15,92)}
+  if(rides.length){const best=Math.max(...rides.map(r=>r.km/(r.sec/3600)));a.bikePow=clamp(90-(43-best*1.03)/.31,15,92);a.bikeEnd=clamp(30+Math.max(...rides.map(r=>r.km))*.2,15,92)}
+  if(swims.length){const best=Math.min(...swims.map(s=>s.sec/(s.km*10)));a.swimTec=clamp(90-(best-70)/1.35,10,92);a.swimEnd=clamp(25+Math.max(...swims.map(s=>s.km))*10,10,92)}
+  a.str=clamp(36+acts.filter(x=>x.sport==='str').length,20,80);
+  for(const k in a)a[k]=Math.round(a[k]);
+  const starts=acts.map(x=>x.start).filter(Boolean),span=starts.length?Math.max(1,(Math.max(...starts)-Math.min(...starts))/6048e5):4;
+  const loadOf=x=>{const k=classify(x,a,null);return k?SESS[k].load*clamp(x.sec/60/SESS[k].min,.4,2.5):0};
+  const total=acts.reduce((s,x)=>s+loadOf(x),0),last=starts.length?Math.max(...starts):0;
+  const recent=acts.filter(x=>x.start&&last-x.start<6048e5).reduce((s,x)=>s+loadOf(x),0);
+  return{a,ctl:clamp(total/span,120,600),fatigue:clamp(recent*.12,10,70),n:acts.length,
+    sports:{run:runs.length,bike:rides.length,swim:swims.length}};
+}
+
+/* ---------- create athlete ---------- */
+function createAthlete(){
+  const o=S.ob,err={};const age=parseInt(o.age,10);
+  if(!o.name.trim())err.name='Escreve o nome do atleta.';
+  if(!(age>=18&&age<=80))err.age='A idade tem de estar entre 18 e 80.';
+  if(o.start==='files'&&!(o.imp&&o.imp.n))err.files='Importa pelo menos um treino, ou escolhe outro ponto de partida.';
+  o.err=err;if(Object.keys(err).length)return false;
+  let base;
+  if(o.start==='filinto')base={a:{...FILINTO.a},ctl:FILINTO.ctl,fatigue:FILINTO.fatigue,shoeKm:FILINTO.shoeKm,gear:FILINTO.gear,owned:{carbon:true,crocs:true}};
+  else if(o.start==='files')base={a:{...o.imp.a},ctl:o.imp.ctl,fatigue:o.imp.fatigue,shoeKm:300,gear:[['Bike de estrada','do teu Strava ou relógio'],['Sapatilhas de treino','300 km']],owned:{}};
+  else base={a:{...PROFILES[o.preset].a},ctl:250,fatigue:30,shoeKm:150,gear:[['Bike de estrada de alumínio','emprestada pelo primo'],['Sapatilhas de treino','150 km']],owned:{}};
+  const club=CLUBS.find(c=>c.id===o.club);
+  const members=[];for(let i=0;i<12;i++){const cat=i%2?'M':'F';members.push({nm:nameFor(cat),cat,age:22+Math.floor(Math.random()*35),r:clamp(52+gauss()*9,30,80),pts:0,active:false})}
+  const ov=overall(base.a);
+  const legends={};CAL.forEach(r=>legends[r.id]={nm:nameFor(o.cat),count:3+Math.floor(Math.random()*3)});
+  S={v:2,created:true,
+    ath:{name:o.name.trim(),cat:o.cat,age,city:o.city.trim()||'—',club:o.club,start:o.start},
+    week:1,money:850,fame:8,pts:0,job:true,a:base.a,fatigue:base.fatigue,moral:70,ctl:base.ctl,injury:0,injuryName:'',
+    plan:PRESETS['Típica'].slice(),real:[[],[],[],[],[],[],[]],rain:false,owned:base.owned,shoeKm:base.shoeKm,gear:base.gear,subs:{},sponsors:[],offered:{},
+    rival:{nm:nameFor(o.cat),age:clamp(age+Math.round(gauss()*3),18,80),r:ov+4,beaten:0,lost:0},
+    club:{id:club.id,members,div:2,score:0,season:0,part:0,others:OTHER_CLUBS.map(n=>({n,base:rnd(60,95),score:0,season:0}))},
+    legends,raceCount:{},slots:{},chal:null,invite:(o.name.trim().slice(0,3).toUpperCase().replace(/[^A-ZÇÃÕÁÉÍÓÚ]/g,'X')+'-'+Math.random().toString(36).slice(2,6).toUpperCase()),
+    inbox:[{k:'msg',t:`Bem-vind${o.cat==='F'?'a':'o'} ao Transição`,x:`Corres na categoria ${o.cat==='F'?'feminina':'masculina'}, escalão ${AG(age)}, pelo ${club.n}. A primeira prova é o Sprint da Póvoa, na semana 3. `,done:false}],
+    results:[],tab:'semana',race:null,last:null,flash:''};
+  S.inbox[0].x=`Corres na categoria ${o.cat==='F'?'feminina':'masculina'}, escalão ${AG(age)}, pelo ${club.n}. A primeira prova é o Sprint da Póvoa, na semana 3. ${o.cat==='F'?'A tua rival':'O teu rival'} vai ser ${S.rival.nm}: está um pouco à tua frente.`;
+  if(o.start==='filinto')S.inbox.unshift({k:'msg',t:'As Supernova Rise estão gastas',x:'763 km. Foram reformadas. Andas agora com as Invincible Run 3 (2).',done:true});
+  return true;
+}
+
+/* ---------- derived ---------- */
+const season=()=>Math.floor((S.week-1)/20)+1;
+const wis=()=>((S.week-1)%20)+1;
+const raceThisWeek=()=>CAL.find(r=>r.w===wis());
+const nextRace=()=>CAL.find(r=>r.w>=wis());
+const form=()=>S.ctl/10-S.fatigue*.6;
+const overall=a=>Math.round((a.swimTec+a.swimEnd)/2*.2+(a.bikePow+a.bikeEnd)/2*.3+(a.runSpd+a.runEnd)/2*.33+(a.trans+a.str+a.mental)/3*.17);
+const myClub=()=>CLUBS.find(c=>c.id===S.ath.club);
+function canEnter(r){if(r.minPts&&S.pts<r.minPts)return false;if(r.needSlot&&!S.slots[r.id]&&S.pts<r.altPts)return false;return true}
+function whyNot(r){if(r.minPts&&S.pts<r.minPts)return`precisa de ${r.minPts} pts`;if(r.needSlot&&!S.slots[r.id]&&S.pts<r.altPts)return`precisa de vaga ou ${r.altPts} pts`;return''}
+function bikeGear(){let b=S.owned.tt?.06:S.owned.aero?.03:0;if(S.owned.wheels)b+=.02;if(S.owned.helmet)b+=.01;return b}
+const wsVal=()=>S.owned.wsPro?.06:S.owned.wsBasic?.04:0;
+function gainMult(sp){let m=1;if(S.subs.coach)m*=1.2;if(!S.job)m*=1.1;
+  if(sp==='bike'){if(S.owned.pm)m*=1.15;if(S.owned.trainer)m*=1.1;else if(S.rain)m*=.6}
+  if(S.fatigue>70)m*=.6;return m*(.85+S.moral/100*.3)}
+function injuryRisk(s){if(s.sp==='swim'||!s.load)return 0;let p=.006+Math.max(0,S.fatigue-55)*.0025-S.a.str*.00005;if(s.km&&S.shoeKm>700)p+=.03;if(s.sp!=='run')p*=.5;return Math.max(0,p)}
+function dayItems(i){
+  const real=S.real[i]||[];
+  if(real.length)return real.map(r=>({k:r.k,ratio:r.ratio,real:true,min:r.min,km:r.km}));
+  const k=S.plan[i];return[{k,ratio:1,real:false,min:SESS[k].min,km:SESS[k].km||0}];
+}
+function bonusFor(i,k){const ev=myClub().ev,s=SESS[k],b=[];
+  if(i===ev.d&&(s.sp===ev.sp||k==='brick'))b.push('club');
+  if(i===6&&k==='runZ2')b.push('group');return b}
+
+/* ---------- week ---------- */
+function processWeek(){
+  const race=raceThisWeek(),enter=race&&canEnter(race)&&S.money>=race.fee;
+  const rep=[],gains={};let load=0,newInj=false,z2=0,clubPart=false;const trained={swim:0,bike:0,run:0};
+  for(let i=0;i<7;i++){
+    if(i===6&&enter)continue;
+    const items=dayItems(i);let rested=true;
+    for(const it of items){
+      let k=it.k,sess=SESS[k];
+      if(!it.real&&S.injury>0&&(sess.sp==='run'||k==='brick')){rep.push(`${DAYS[i]}: lesionado, ${sess.n.toLowerCase()} trocada por descanso.`);k='rest';sess=SESS.rest}
+      if(!it.real&&sess.cost>S.money){rep.push(`${DAYS[i]}: sem dinheiro para a piscina.`);k='rest';sess=SESS.rest}
+      if(!it.real)S.money-=sess.cost;
+      if(k!=='rest')rested=false;
+      const L=sess.load*it.ratio;load+=L;S.fatigue=clamp(S.fatigue+L*.18,0,100);
+      let m=gainMult(sess.sp)*Math.min(it.ratio,2)*(it.real?1.1:1);
+      const b=bonusFor(i,k);if(b.includes('club')){m*=1.15;clubPart=true}if(b.includes('group'))m*=1.15;
+      for(const[at,g0]of Object.entries(sess.g)){const g=g0*Math.pow(1-S.a[at]/100,1.2)*m;S.a[at]=Math.min(99,S.a[at]+g);gains[at]=(gains[at]||0)+g}
+      if(sess.sp==='run')S.shoeKm+=Math.round(it.real?it.km:sess.km);
+      if(k==='runZ2'||k==='bikeZ2')z2+=it.min;
+      if(sess.sp in trained)trained[sess.sp]++;if(k==='brick')trained.bike++;
+      if(!it.real&&!newInj&&S.injury===0&&Math.random()<injuryRisk(sess)){
+        S.injury=1+Math.floor(Math.random()*3);S.injuryName=pick(['canelite','dor no tendão de Aquiles','fascite plantar','contratura na barriga da perna']);newInj=true;
+        rep.push(`${DAYS[i]}: lesão — ${S.injuryName}, ${S.injury} semana(s) sem correr.`);
+      }
+    }
+    S.fatigue=clamp(S.fatigue-(rested?17:7),0,100);
+  }
+  for(const sp of['swim','bike','run'])if(!trained[sp])for(const at in ATTR)if(ATTR[at][1]===sp){S.a[at]=Math.max(10,S.a[at]-.25);gains[at]=(gains[at]||0)-.25}
+  if(!newInj&&S.injury>0)S.injury--;
+  S.ctl+=(load-S.ctl)/5;
+  let fin=-180;if(S.job){fin+=320;S.fatigue+=6}
+  S.sponsors.forEach(sp=>{fin+=sp.weekly;sp.left--});
+  S.sponsors.filter(sp=>sp.left<=0).forEach(sp=>S.inbox.unshift({k:'msg',t:`Contrato com ${sp.n} terminou`,x:'Se a tua fama subiu, podem voltar com uma proposta melhor.',done:true}));
+  S.sponsors=S.sponsors.filter(sp=>sp.left>0);
+  if(S.subs.coach)fin-=45;S.money+=fin;
+  if(S.owned.crocs)S.moral+=2;
+  S.moral+=(65-S.moral)*.1;if(S.fatigue>75)S.moral-=5;
+  S.moral=clamp(S.moral,0,100);S.fatigue=clamp(S.fatigue,0,100);
+  // club week
+  const C=S.club,myPts=Math.round(load/4)+(enter?30:0)+(clubPart?15:0);
+  C.members.forEach(m=>{m.active=Math.random()<.65;m.pts=m.active?Math.round(rnd(40,110)*m.r/55):0});
+  C.myPts=myPts;const all=[...C.members.map(m=>m.pts),myPts].filter(x=>x>0).sort((a,b)=>b-a),top=all.length?all.slice(0,10):[0];
+  C.part=(C.members.filter(m=>m.active).length+(myPts>0?1:0))/(C.members.length+1);
+  C.score=Math.round(top.reduce((a,b)=>a+b,0)/top.length*(.7+.3*C.part));C.season+=C.score;C.clubPart=clubPart;
+  C.others.forEach(o=>{o.score=Math.round(o.base*rnd(.85,1.15));o.season+=o.score});
+  // challenge: Z2 hours vs 3 friends
+  const fr=C.members.slice(0,3).map(m=>({nm:m.nm,h:Math.round(rnd(2.5,7)*10)/10}));
+  const me=Math.round(z2/6)/10;S.chal={me,fr,won:fr.every(f=>me>f.h)};
+  if(S.chal.won){S.fame+=1;S.moral=clamp(S.moral+3,0,100)}
+  if(S.shoeKm>700&&!S.shoeWarned){S.shoeWarned=true;S.inbox.unshift({k:'msg',t:'As sapatilhas passaram os 700 km',x:'O risco de lesão a correr aumentou. Há sapatilhas novas na loja.',done:true})}
+  S.last={week:wis(),load:Math.round(load),gains,rep,fin};
+  if(race&&!enter)rep.push(`Não entraste em ${race.n}: ${whyNot(race)||'sem dinheiro para a inscrição'}.`);
+  S.real=[[],[],[],[],[],[],[]];
+  if(enter){S.money-=race.fee;S.raceCount[race.id]=(S.raceCount[race.id]||0)+1;S.race={...race,stage:'setup',ch:{pos:'lado',int:.88,gels:GELS[race.t],strat:'constante'}};S.tab='semana'}
+  else endWeek();
+  save();render();window.scrollTo(0,0);
+}
+function endWeek(){
+  if(wis()===20){
+    const C=S.club,table=[{n:myClub().n,season:C.season,me:true},...C.others.map(o=>({n:o.n,season:o.season}))].sort((a,b)=>b.season-a.season);
+    const pos=table.findIndex(t=>t.me)+1;let note='Ficam na mesma divisão.';
+    if(pos===1&&C.div>1){C.div--;note=`Sobem à divisão ${C.div}!`}else if(pos===table.length&&C.div<3){C.div++;note=`Descem à divisão ${C.div}.`}
+    S.inbox.unshift({k:'msg',t:`O teu clube acabou a temporada em ${pos}º`,x:`${myClub().n} fez ${C.season} pontos. ${note}`,done:true});
+    C.season=0;C.others.forEach(o=>{o.season=0;o.base*=rnd(1,1.06)});
+  }
+  S.week++;S.rain=false;
+  if(wis()===1){S.ath.age++;S.slots={};S.inbox.unshift({k:'msg',t:`Começa a temporada ${season()}`,x:`Fizeste anos: agora tens ${S.ath.age}, escalão ${AG(S.ath.age)}. Os adversários também treinaram no inverno.`,done:true})}
+  if(S.money<-200){S.money+=300;S.moral-=10;S.inbox.unshift({k:'msg',t:'A família emprestou 300 €',x:'"Isto do triatlo dá dinheiro, não dá?" Moral −10.',done:true})}
+  S.inbox=S.inbox.filter(m=>m.done||m.k==='offer').slice(0,14);
+  for(const sp of SPONSORS)if(S.fame>=sp.minFame&&!S.offered[sp.id]&&!S.sponsors.find(x=>x.id===sp.id)){S.offered[sp.id]=1;S.inbox.unshift({k:'offer',id:sp.id,t:`Proposta: ${sp.n}`,x:`${sp.d} ${eur(sp.weekly)} por semana durante ${sp.weeks} semanas, mais ${eur(sp.podium)} por pódio.`});break}
+  if(Math.random()<.55){const pool=Object.entries(EVENTS).filter(([id,e])=>(!e.minFame||S.fame>=e.minFame)&&(!e.job||S.job));const[id,e]=pick(pool);S.inbox.unshift({k:'ev',id,t:e.t,x:e.x})}
+}
+
+/* ---------- race ---------- */
+function sim(a,race,ch,ctx){
+  const D=DIST[race.t],ev=[],long=race.t==='meia';
+  const noise=()=>1+gauss()*.015*(1.3-a.mental/100*.6),fm=1-clamp(ctx.form,-30,30)*.0015;
+  const sw=long?.5*a.swimTec+.5*a.swimEnd:.6*a.swimTec+.4*a.swimEnd;
+  const P={frente:[.965,.3],lado:[.985,.1],tras:[1,0]}[ch.pos],wsOn=race.temp<22&&ctx.ws>0;
+  let swim=D.swim/100*Math.max(62,70+(90-sw)*1.35)*P[0]*(wsOn?1-ctx.ws:1)*fm*noise();
+  if(Math.random()<P[1]){const x=rnd(25,70);swim+=x;ev.push(['swim',`Pancada na confusão da primeira boia: perdeste ${Math.round(x)} s.`])}
+  const t1=(50+(100-a.trans)*1.3+(wsOn?(ctx.wsFast?6:14):0))*noise();
+  const bk=long?.5*a.bikePow+.5*a.bikeEnd:.7*a.bikePow+.3*a.bikeEnd;
+  const I={.75:[.95,24],.82:[.975,38],.88:[1,54],.95:[1.025,80]}[ch.int];
+  const bike=D.bike/((43-(90-bk)*.31)*I[0]*(1+ctx.bike))*3600*fm*noise();
+  let energy=100-I[1]*(D.bike/40)*(1.3-a.bikeEnd/100*.6)-45*(D.run/10)*(1.3-a.runEnd/100*.6)+ch.gels*14;
+  let stomach=0;if(ch.gels>GELS[race.t]+1&&Math.random()<.45){stomach=rnd(50,130);ev.push(['bike',`Géis a mais: estômago às voltas. Perdeste ${Math.round(stomach)} s.`])}
+  const t2=(35+(100-a.trans)*.8)*noise();
+  const rr=long?.4*a.runSpd+.6*a.runEnd:.6*a.runSpd+.4*a.runEnd;
+  const ST={conservador:[1.02,10],constante:[1,0],agressivo:[.975,-15],negativo:[.99,-5]}[ch.strat];energy+=ST[1];
+  let rp=(185+(90-rr)*4.7)*ST[0]*(1-ctx.shoe);
+  if(ch.strat==='negativo'&&a.mental<55&&Math.random()<.5){rp*=1.02;ev.push(['run','Querias acelerar na segunda metade, mas a cabeça não deixou.'])}
+  if(energy<20){const k=(20-energy)*.006;rp*=1+k;ev.push(['run',`Bateste na parede: o ritmo caiu ${Math.round(k*100)}%.`])}
+  const run=D.run*rp*fm*noise()+stomach;
+  return{swim,t1,bike,t2,run,total:swim+t1+bike+t2+run,ev,spd:D.bike/(bike/3600),rp:(run-stomach)/D.run};
+}
+function attrsAround(R){const a={};for(const k in ATTR)a[k]=clamp(R+gauss()*9,15,96);a.mental=clamp(55+gauss()*15,20,95);return a}
+function runRace(){
+  const r=S.race,ch=r.ch,cat=S.ath.cat,n=cat==='F'?r.nF:r.nM,mean=r.lvl+(cat==='F'?-8:0)+(season()-1)*3;
+  const used=new Set([S.ath.name]),field=[];
+  const add=(nm,age,R,tag,club)=>{used.add(nm);const a=attrsAround(R);
+    field.push({nm,age,ag:AG(age),tag,club,...sim(a,r,{pos:pick(['frente','lado','lado','tras']),int:r.t==='meia'?.82:.88,gels:GELS[r.t],strat:'constante'},{form:gauss()*6,bike:rnd(0,.06),ws:.04,shoe:rnd(0,.015)})})};
+  add(S.rival.nm,S.rival.age,S.rival.r,'rival',pick(OTHER_CLUBS));
+  const friends=S.club.members.filter(m=>m.cat===cat).sort(()=>Math.random()-.5).slice(0,Math.random()<.5?2:3);
+  friends.forEach(m=>add(m.nm,m.age,m.r,'clube',myClub().n));
+  while(field.length<n-1){let nm;do nm=nameFor(cat);while(used.has(nm));const age=18+Math.floor(Math.random()*47);
+    add(nm,age,mean+gauss()*10-Math.max(0,age-40)*.35,'',Math.random()<.5?pick(OTHER_CLUBS):'')}
+  const me=sim(S.a,r,ch,{form:form(),bike:bikeGear(),ws:wsVal(),wsFast:!!S.owned.wsPro,shoe:S.owned.carbon?.015:0});
+  Object.assign(me,{nm:S.ath.name,age:S.ath.age,ag:AG(S.ath.age),tag:'tu',club:myClub().n,me:true});field.push(me);
+  const N=field.length,posAt=keys=>field.map(f=>({f,t:keys.reduce((s,k)=>s+f[k],0)})).sort((a,b)=>a.t-b.t).findIndex(x=>x.f.me)+1;
+  const pSwim=posAt(['swim']),pBike=posAt(['swim','t1','bike']);
+  field.sort((a,b)=>a.total-b.total);field.forEach((f,i)=>f.pos=i+1);
+  const p=me.pos,agList=field.filter(f=>f.ag===me.ag),agP=agList.indexOf(me)+1,clubList=field.filter(f=>f.tag==='clube'||f.me);
+  const riv=field.find(f=>f.tag==='rival'),beatRival=me.total<riv.total;
+  const catL=cat==='F'?'feminina':'masculina',o=cat==='F'?'ª':'º';
+  const wsOn=r.temp<22&&wsVal()>0;
+  const feed=[
+    ['gen',`Partida da prova ${catL}: ${N} atletas, água a ${r.temp} °C${r.temp<22?(wsOn?', com fato':', sem fato isotérmico'):''}.`],
+    ...me.ev.filter(e=>e[0]==='swim'),
+    ['swim',`Sais da água em ${pSwim}${o} (${pace(me.swim/(DIST[r.t].swim/100))}/100 m).`],
+    ['gen',`T1 em ${fmt(me.t1)}.`],
+    ...me.ev.filter(e=>e[0]==='bike'),
+    ['bike',`Bike a ${dec(me.spd)} km/h. Chegas à T2 em ${pBike}${o}.`],
+    ['gen',`T2 em ${fmt(me.t2)}.`],
+    ...me.ev.filter(e=>e[0]==='run'),
+    ['run',beatRival?`Passas ${riv.nm} na corrida!`:`${riv.nm} vai à tua frente na corrida.`],
+    ['run',`Meta! ${p}${o} da geral ${catL}, ${agP}${o} no escalão ${me.ag}.`]
+  ];
+  const rt=RT[r.t],prize=p<=3?[300,150,80][p-1]*rt.prize:0;
+  let fame=Math.max(0,(N*.5-p))/N*20*rt.fame+1+(agP===1?2:0);
+  const pts=Math.round(Math.max(0,1-(p-1)/N)*40*rt.pts);
+  let bonus=0;if(p<=3)S.sponsors.forEach(sp=>bonus+=sp.podium);
+  let slot='';if(r.slot&&agP<=r.slot){S.slots.algarve=true;slot='Vaga para a Meia distância do Algarve'}
+  const L=S.legends[r.id];let legend='';if(S.raceCount[r.id]>L.count){L.nm=S.ath.name;L.count=S.raceCount[r.id];legend=`És a lenda local de ${r.n}.`}
+  S.money+=prize+bonus;S.fame+=fame;S.pts+=pts;
+  S.fatigue=clamp(S.fatigue+rt.fat,0,100);S.a.mental=Math.min(99,S.a.mental+.6);S.a.trans=Math.min(99,S.a.trans+.4);
+  S.moral=clamp(S.moral+(p<=N*.2?8:p>N*.6?-6:2)+(beatRival?5:0),0,100);
+  if(beatRival)S.rival.beaten++;else S.rival.lost++;
+  S.rival.r+=.6+Math.random()*.8+(beatRival?.6:0);
+  const lost=S.sponsors.filter(sp=>sp.req&&p/N>sp.req);
+  lost.forEach(sp=>S.inbox.unshift({k:'msg',t:`${sp.n} rescindiu o contrato`,x:`Acabaste em ${p}${o} de ${N}, fora do top ${Math.round(sp.req*100)}%.`,done:true}));
+  S.sponsors=S.sponsors.filter(sp=>!lost.includes(sp));
+  const row=f=>({pos:f.pos,nm:f.nm,tag:f.tag,ag:f.ag,total:f.total,me:!!f.me});
+  const lists={geral:field.slice(0,10).map(row),escalao:agList.slice(0,10).map(row),clube:clubList.map(row)};
+  if(p>10)lists.geral.push(row(me));if(agP>10)lists.escalao.push(row(me));
+  S.results.push({week:S.week,season:season(),id:r.id,n:r.n,t:r.t,p,N,agP,agN:agList.length,ag:me.ag,total:me.total});
+  r.stage='running';r.view='escalao';
+  r.res={feed,p,N,agP,agN:agList.length,ag:me.ag,catL,o,me:{swim:me.swim,t1:me.t1,bike:me.bike,t2:me.t2,run:me.run,total:me.total},lists,prize,bonus,fame,pts,slot,legend,beatRival,rivalNm:riv.nm};
+  r.shown=0;save();render();tick();
+}
+function tick(){const r=S.race;if(!r||r.stage!=='running')return;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)r.shown=r.res.feed.length;
+  if(r.shown<r.res.feed.length){r.shown++;render();setTimeout(tick,800)}else{r.stage='done';save();render()}}
+
+/* ---------- actions ---------- */
+const price=it=>Math.round(it.p*(it.cat==='Bike'&&S.sponsors.find(s=>s.disc)?.7:1));
+async function importWeek(files){
+  const{acts,errs}=await readFiles(files);addReal(acts,errs);
+}
+function addReal(acts,errs=[]){
+  let added=0;const seen=new Set(S.real.flat().map(r=>r.key));
+  for(const a of acts){
+    const k=classify(a,S.a,S.ath.age);if(!k)continue;
+    const key=a.sport+':'+(a.start||'')+':'+Math.round(a.sec);if(seen.has(key))continue;seen.add(key);
+    let d=a.start?(new Date(a.start).getDay()+6)%7:S.real.findIndex(x=>!x.length);if(d<0)d=0;
+    const race=raceThisWeek();if(d===6&&race&&canEnter(race))d=5;
+    S.real[d].push({k,key,ratio:clamp(a.sec/60/SESS[k].min,.4,2.5),min:Math.round(a.sec/60),km:Math.round(a.km*10)/10,sport:a.sport,hr:a.hr?Math.round(a.hr):null});added++;
+  }
+  S.flash=added?`${added} treino(s) real(is) importado(s). Contam com +10% nos ganhos.`:'Nenhum treino novo importado.';
+  if(errs.length)S.flash+=' '+errs.join('; ');
+  save();render();
+}
+function act(name,arg){
+  const A={
+    tab:()=>{S.tab=arg;S.flash='';window.scrollTo(0,0)},
+    ob:()=>{const[k,v]=arg.split('=');S.ob[k]=v;if(k==='start')S.ob.err.files=''},
+    obSample:()=>{S.ob.imp=attrsFromActs(sampleActs());S.ob.imp.sample=true;S.ob.err.files=''},
+    create:()=>{if(createAthlete())window.scrollTo(0,0)},
+    preset:()=>{S.plan=PRESETS[arg].slice()},
+    close:()=>processWeek(),
+    unreal:()=>{S.real[+arg]=[]},
+    sampleReal:()=>{const d=new Date(),sat=new Date(d.getTime()-((d.getDay()+1)%7)*864e5);addReal([{sport:'run',start:sat.getTime(),sec:3480,km:10.4,hr:144}])},
+    ev:()=>{const[i,o]=arg.split(':').map(Number);const m=S.inbox[i];m.res=EVENTS[m.id].o[o][1](S);m.done=true;S.moral=clamp(S.moral,0,100);S.fatigue=clamp(S.fatigue,0,100)},
+    accept:()=>{const m=S.inbox[+arg],sp=SPONSORS.find(x=>x.id===m.id);if(S.sponsors.length>=3){m.res='Já tens 3 patrocinadores. Espera que um contrato acabe.';return}S.sponsors.push({...sp,left:sp.weeks});m.done=true;m.k='msg';m.res=`Assinaste com ${sp.n}.`},
+    decline:()=>{const m=S.inbox[+arg];m.done=true;m.k='msg';m.res='Recusaste a proposta.'},
+    buy:()=>{const it=SHOP.find(x=>x.id===arg),pr=price(it);if(S.money<pr){S.flash=`Faltam ${eur(pr-S.money)} para ${it.n.toLowerCase()}.`;return}
+      S.money-=pr;if(it.sub){S.subs[it.id]=true;return}if(it.id==='shoes'){S.shoeKm=0;S.shoeWarned=false}else if(it.id==='massage')S.fatigue=clamp(S.fatigue-15,0,100);else S.owned[it.id]=true;S.flash=`Compraste: ${it.n.toLowerCase()}.`},
+    unsub:()=>{S.subs[arg]=false},
+    quit:()=>{S.quitAsk=true},quitYes:()=>{S.job=false;S.quitAsk=false},quitNo:()=>{S.quitAsk=false},
+    job:()=>{S.job=true},
+    rc:()=>{const[k,v]=arg.split('=');S.race.ch[k]=k==='pos'||k==='strat'?v:+v},
+    gels:()=>{S.race.ch.gels=clamp(S.race.ch.gels+(+arg),0,8)},
+    start:()=>runRace(),
+    view:()=>{S.race.view=arg},
+    raceDone:()=>{S.race=null;endWeek();window.scrollTo(0,0)},
+    clubView:()=>{S.clubView=arg},
+    copy:()=>{const t=S.invite;const done=()=>{S.flash=`Código ${t} copiado.`;save();render()};
+      try{navigator.clipboard.writeText(t).then(done,()=>{S.flash=`Copia o código à mão: ${t}`;save();render()})}catch(e){S.flash=`Copia o código à mão: ${t}`}},
+    reset:()=>{S.resetAsk=true},resetYes:()=>{S=initState()},resetNo:()=>{S.resetAsk=false}
+  };
+  if(A[name]){A[name]();if(!['close','start','copy'].includes(name)){save();render()}}
+}
+
+/* ---------- views ---------- */
+const bar=(v,c)=>`<div class="track"><i style="width:${clamp(v,0,100)}%${c?';background:'+c:''}"></i></div>`;
+function vBar(){
+  if(!S.created)return'';const f=form();
+  return`<div class="bar"><div class="bar-in"><div class="bar-top"><b>Semana ${wis()} de 20</b><span class="mono">${S.money<0?'<span style="color:var(--bad)">':''}${eur(S.money)}${S.money<0?'</span>':''}</span></div>
+  <div class="meters"><div class="meter"><span>Fadiga <b>${Math.round(S.fatigue)}</b></span>${bar(S.fatigue,S.fatigue>70?'var(--bad)':S.fatigue>50?'var(--warn)':'')}</div>
+  <div class="meter"><span>Forma <b>${f>=0?'+':''}${Math.round(f)}</b></span>${bar(50+f*1.6,f<-5?'var(--bad)':'')}</div>
+  <div class="meter"><span>Moral <b>${Math.round(S.moral)}</b></span>${bar(S.moral)}</div></div></div></div>`;
+}
+function vTabs(){
+  if(!S.created)return'';const n=S.inbox.filter(m=>!m.done).length;
+  return`<div class="in">${[['semana','Semana'],['atleta','Atleta'],['clube','Clube'],['loja','Loja'],['carreira','Carreira']].map(([k,l])=>`<button data-act="tab" data-arg="${k}" ${S.tab===k?'aria-current="page"':''}>${l}${k==='semana'&&n?`<span class="dot">${n}</span>`:''}</button>`).join('')}</div>`;
+}
+function vOnboard(){
+  const o=S.ob,ag=parseInt(o.age,10)>=18?AG(parseInt(o.age,10)):'';
+  const imp=o.imp;
+  return`<h1>Criar atleta</h1>
+  <label class="f">Nome<input type="text" id="ob-name" data-input="name" value="${esc(o.name)}" placeholder="Filinto Meireles" autocomplete="off"></label>${o.err.name?`<span class="err">${o.err.name}</span>`:''}
+  <div class="f" style="display:flex;flex-direction:column;gap:5px"><span class="small muted">Categoria</span><div class="seg">
+    <button data-act="ob" data-arg="cat=F" aria-pressed="${o.cat==='F'}">Feminino</button><button data-act="ob" data-arg="cat=M" aria-pressed="${o.cat==='M'}">Masculino</button></div></div>
+  <label class="f">Idade<input type="number" id="ob-age" data-input="age" inputmode="numeric" min="18" max="80" value="${esc(o.age)}" placeholder="38"></label>
+  <span class="small muted" id="ob-ag">${ag?`Escalão ${ag}`:'A idade define o teu escalão.'}</span>${o.err.age?`<span class="err">${o.err.age}</span>`:''}
+  <label class="f">Cidade<input type="text" id="ob-city" data-input="city" value="${esc(o.city)}" placeholder="Paços de Ferreira" autocomplete="off"></label>
+  <label class="f">Run club<select id="ob-club" data-change="club">${CLUBS.map(c=>`<option value="${c.id}" ${c.id===o.club?'selected':''}>${c.n} · ${c.members} membros</option>`).join('')}</select></label>
+  <span class="small muted">Ponto de partida</span>
+  <button class="opt ${o.start==='files'?'acc':''}" data-act="ob" data-arg="start=files"><b>Importar dados reais</b><span class="small">Ficheiros FIT, GPX ou TCX de qualquer relógio ou app. Strava e outras apps chegam depois.</span></button>
+  ${o.start==='files'?`<div class="card"><div class="row"><span class="btn sm file">Escolher ficheiros<input type="file" id="ob-files" data-file="ob" multiple accept=".fit,.gpx,.tcx"></span><button class="btn sm" data-act="obSample">Usar treinos de exemplo</button></div>
+    ${imp&&imp.n?`<div class="small">${imp.sample?'Exemplo: ':''}${imp.n} treinos lidos (${imp.sports.run} corridas, ${imp.sports.bike} bikes, ${imp.sports.swim} natações). Nota geral prevista: <b>${overall(imp.a)}</b>.</div>
+    <div class="small muted">Natação ${imp.a.swimTec}/${imp.a.swimEnd} · Bike ${imp.a.bikePow}/${imp.a.bikeEnd} · Corrida ${imp.a.runSpd}/${imp.a.runEnd}</div>`:'<div class="small muted">Exporta as últimas semanas do teu relógio ou da tua app. Quanto mais treinos, melhor a calibração.</div>'}
+    ${imp&&imp.errs&&imp.errs.length?`<div class="err">${esc(imp.errs.join('; '))}</div>`:''}${o.err.files?`<span class="err">${o.err.files}</span>`:''}</div>`:''}
+  <button class="opt ${o.start==='preset'?'acc':''}" data-act="ob" data-arg="start=preset"><b>Perfil pronto</b><span class="small">Corredor, ciclista ou ex-nadador</span></button>
+  ${o.start==='preset'?`<select id="ob-preset" data-change="preset" aria-label="Perfil pronto">${Object.entries(PROFILES).map(([k,p])=>`<option value="${k}" ${k===o.preset?'selected':''}>${p.n}</option>`).join('')}</select>`:''}
+  <button class="opt ${o.start==='filinto'?'acc':''}" data-act="ob" data-arg="start=filinto"><b>Exemplo: dados do Filinto</b><span class="small">Atleta calibrado com 3 meses de Strava (ago–nov 2026)</span></button>
+  <button class="btn primary" data-act="create">Criar atleta</button>`;
+}
+function vInbox(){
+  const open=S.inbox.map((m,i)=>[m,i]).filter(([m])=>!m.done||m.res);
+  if(!open.length)return'';
+  return open.slice(0,4).map(([m,i])=>{let b='';
+    if(!m.done&&m.k==='ev')b=`<div class="row">${EVENTS[m.id].o.map((o,j)=>`<button class="btn sm" data-act="ev" data-arg="${i}:${j}">${esc(o[0])}</button>`).join('')}</div>`;
+    if(!m.done&&m.k==='offer')b=`<div class="row"><button class="btn sm" data-act="accept" data-arg="${i}">Assinar</button><button class="btn sm" data-act="decline" data-arg="${i}">Recusar</button></div>`;
+    return`<div class="msg ${m.done?'done':''}"><b>${esc(m.t)}</b><span class="small">${esc(m.x)}</span>${m.res?`<span class="small"><strong>${esc(m.res)}</strong></span>`:''}${b}</div>`}).join('');
+}
+function projected(){const race=raceThisWeek(),enter=race&&canEnter(race);let f=S.fatigue,load=0;
+  for(let i=0;i<7;i++){if(i===6&&enter)continue;let r=true;for(const it of dayItems(i)){const L=SESS[it.k].load*it.ratio;load+=L;f=clamp(f+L*.18,0,100);if(it.k!=='rest')r=false}f=clamp(f-(r?17:7),0,100)}
+  if(S.job)f+=6;f=clamp(f,0,100);return{f,load:Math.round(load),form:(S.ctl+(load-S.ctl)/5)/10-f*.6}}
+function vSemana(){
+  if(S.race)return vProva();
+  const race=raceThisWeek(),enter=race&&canEnter(race),pj=projected(),ev=myClub().ev;
+  const days=S.plan.map((k,i)=>{
+    if(i===6&&enter)return`<div class="day race"><span class="d">${DAYS[i]}</span><b>Prova: ${esc(race.n)}</b><span class="r">${DIST[race.t].l}</span></div>`;
+    const real=S.real[i];
+    if(real.length){const sp=SESS[real[0].k].sp;return`<div class="day sp-${sp}"><span class="d">${DAYS[i]}</span><span>${real.map(r=>esc(SESS[r.k].n)+` <span class="small muted mono">${r.min}′${r.km?' · '+dec(r.km)+' km':''}</span>`).join('<br>')}</span><span class="r"><span class="chip acc">real +10%</span><br><button class="btn sm" style="margin-top:4px;padding:3px 8px" data-act="unreal" data-arg="${i}" aria-label="Remover treino real de ${DAYL[i]}">remover</button></span></div>`}
+    const s=SESS[k],b=bonusFor(i,k);
+    const note=b.includes('club')?'<span class="chip acc">clube +15%</span>':b.includes('group')?'<span class="chip acc">grupo +15%</span>':i===ev.d?`<span class="small muted">${ev.sp==='bike'?'bike':'corrida'} do clube</span>`:i===6?'<span class="small muted">long run do grupo</span>':'';
+    return`<div class="day sp-${s.sp}"><span class="d">${DAYS[i]}</span><select id="d${i}" data-day="${i}" aria-label="Treino de ${DAYL[i]}">${Object.entries(SESS).map(([id,x])=>`<option value="${id}" ${id===k?'selected':''}>${x.n}</option>`).join('')}</select><span class="r">${note}</span></div>`}).join('');
+  const L=S.last,nr=nextRace();
+  return`${S.flash?`<div class="flash" role="status">${esc(S.flash)}</div>`:''}${vInbox()}
+  <div class="between"><h1>Plano da semana</h1><span class="small muted">${S.ath.cat==='F'?'F':'M'} ${AG(S.ath.age)}</span></div>
+  <div class="row"><span class="small muted">Modelos</span>${Object.keys(PRESETS).map(p=>`<button class="btn sm" data-act="preset" data-arg="${p}">${p}</button>`).join('')}</div>
+  <div class="days">${days}</div>
+  <div class="small muted mono">Carga ${pj.load} TL · fadiga prevista ${Math.round(pj.f)} · forma prevista ${pj.form>=0?'+':''}${Math.round(pj.form)}${S.injury?` · lesão (${esc(S.injuryName)})`:''}${S.rain?' · chuva':''}</div>
+  ${nr?`<div class="small">Próxima prova: <b>${esc(nr.n)}</b> ${nr.w===wis()?'este domingo':`daqui a ${nr.w-wis()} semana(s)`}${!canEnter(nr)?` · <span style="color:var(--bad)">${whyNot(nr)}</span>`:''}${nr.w-wis()<=1&&canEnter(nr)?'. Alivia para chegar com forma alta.':''}</div>`:''}
+  <div class="row"><span class="btn sm file">Importar treino real<input type="file" id="wk-files" data-file="week" multiple accept=".fit,.gpx,.tcx" aria-label="Importar ficheiros FIT, GPX ou TCX"></span><button class="btn sm" data-act="sampleReal">Treino de exemplo</button><span class="small muted">FIT, GPX, TCX</span></div>
+  <button class="btn primary" data-act="close">${enter?'Fechar semana e ir para a prova':'Fechar semana'}</button>
+  ${L?`<div class="card"><h2>Resumo da semana ${L.week}</h2><div class="small mono">Carga ${L.load} TL · saldo ${L.fin>=0?'+':''}${eur(L.fin)}</div>
+    <div class="row">${Object.entries(L.gains).filter(([,g])=>Math.abs(g)>=.05).map(([k,g])=>`<span class="chip ${g>0?'good':'bad'}">${SPN[ATTR[k][1]]} ${ATTR[k][0].toLowerCase()} ${g>0?'+':''}${dec(g)}</span>`).join('')||'<span class="small muted">Sem ganhos.</span>'}</div>
+    ${L.rep.map(r=>`<div class="small">${esc(r)}</div>`).join('')}</div>`:''}`;
+}
+function seg(k,opts,cls=''){const v=S.race.ch[k];return`<div class="seg ${cls}" role="group">${opts.map(([val,l])=>`<button data-act="rc" data-arg="${k}=${val}" aria-pressed="${String(v)===String(val)}">${l}</button>`).join('')}</div>`}
+function vProva(){
+  const r=S.race,D=DIST[r.t];
+  if(r.stage==='setup'){const f=form();const n=S.ath.cat==='F'?r.nF:r.nM;
+    return`<h1>${esc(r.n)}</h1><div class="small muted">${D.l} · ${D.swim} m · ${D.bike} km · ${dec(D.run)} km · ${n} atletas na prova ${S.ath.cat==='F'?'feminina':'masculina'}</div>
+    <div class="small">Água a ${r.temp} °C · ${r.temp<22?(wsVal()?'fato permitido e tens um':'fato permitido, mas não tens'):'sem fatos'} · forma ${f>=0?'+':''}${Math.round(f)}</div>
+    <span class="small muted">Natação · posição na partida</span>${seg('pos',[['frente','Frente'],['lado','Lado'],['tras','Trás']])}
+    <span class="small muted">Bike · % do FTP</span>${seg('int',[[.75,'75'],[.82,'82'],[.88,'88'],[.95,'95']])}
+    <span class="small muted">Géis na bike</span><div class="seg"><button data-act="gels" data-arg="-1" aria-label="Menos um gel">−</button><button aria-pressed="false" tabindex="-1" style="font-weight:700">${r.ch.gels} gé${r.ch.gels===1?'l':'is'}</button><button data-act="gels" data-arg="1" aria-label="Mais um gel">+</button></div>
+    <span class="small muted">${S.owned.nutri?`A nutricionista recomenda ${GELS[r.t]}.`:'Poucos e bates na parede; demasiados e o estômago reclama.'}</span>
+    <span class="small muted">Corrida · estratégia</span>${seg('strat',[['conservador','Conservador'],['constante','Constante'],['negativo','Negative split'],['agressivo','Agressivo']],'two')}
+    <div class="small muted">Na prova: ${S.ath.cat==='F'?'a tua rival':'o teu rival'} ${esc(S.rival.nm)} e amigos do ${esc(myClub().n)}.</div>
+    <button class="btn primary" data-act="start">Partida</button>`}
+  const R=r.res,feed=R.feed.slice(0,r.shown).map(([sp,t])=>`<div style="--sp:var(--${sp==='gen'?'line':sp})">${esc(t)}</div>`).join('');
+  if(r.stage!=='done')return`<h1>${esc(r.n)}</h1><div class="feed" aria-live="polite">${feed}</div>`;
+  const list=R.lists[r.view||'escalao'];
+  return`<h1>${esc(r.n)}</h1>
+  <div class="row" style="gap:16px;align-items:center"><span class="big">${R.p}${R.o}</span><div><div class="small muted">geral ${R.catL}, de ${R.N}</div><div class="mono" style="font-size:18px;font-weight:600">${fmt(R.me.total)}</div></div></div>
+  <div class="card acc" style="padding:10px;text-align:center"><b>${R.agP}${R.o} no escalão ${S.ath.cat} ${R.ag}</b></div>
+  <div class="splits">${[['Nat',R.me.swim],['T1',R.me.t1],['Bike',R.me.bike],['T2',R.me.t2],['Corr',R.me.run]].map(([l,t])=>`<div><span>${l}</span><b>${fmt(t)}</b></div>`).join('')}</div>
+  <div class="seg">${[['geral','Geral'],['escalao','Escalão'],['clube','Clube']].map(([k,l])=>`<button data-act="view" data-arg="${k}" aria-pressed="${(r.view||'escalao')===k}">${l}</button>`).join('')}</div>
+  <div class="lb">${list.map((x,i)=>`<div class="it ${x.me?'me':''}"><span class="n">${r.view==='geral'?x.pos:r.view==='clube'?i+1:(R.lists.escalao.indexOf(x)>=0&&x.me?R.agP:i+1)}</span><span>${x.me?'Tu':esc(x.nm)}${x.tag==='rival'?' · rival':x.tag==='clube'?' · clube':''}${r.view==='geral'?` <span class="small muted">${x.ag}</span>`:''}</span><span class="t">${fmt(x.total)}</span></div>`).join('')}</div>
+  <div class="small">${R.prize?eur(R.prize)+' · ':''}${R.bonus?'bónus '+eur(R.bonus)+' · ':''}+${Math.round(R.fame)} fama · +${R.pts} pontos de ranking</div>
+  ${R.slot?`<div class="small" style="color:var(--accent);font-weight:700">${R.slot}</div>`:''}${R.legend?`<div class="small" style="color:var(--accent);font-weight:700">${R.legend}</div>`:''}
+  <div class="small">${R.beatRival?`Bateste ${esc(R.rivalNm)}. Moral +5.`:`${esc(R.rivalNm)} ficou à tua frente desta vez.`}</div>
+  <button class="btn primary" data-act="raceDone">Continuar</button>`;
+}
+function vAtleta(){
+  const A=S.ath,groups=['swim','bike','run','gen'].map(sp=>`<div class="card sp-${sp}" style="border-top:3px solid var(--sp)"><h2>${SPN[sp]}</h2>${Object.entries(ATTR).filter(([,v])=>v[1]===sp).map(([k,v])=>`<div class="attr"><span>${v[0]}</span><span class="v">${Math.round(S.a[k])}</span>${bar(S.a[k],sp==='gen'?'var(--muted)':`var(--${sp})`)}</div>`).join('')}</div>`).join('');
+  const gear=S.gear.concat(SHOP.filter(i=>S.owned[i.id]&&!(i.id==='carbon'&&A.start==='filinto')).map(i=>[i.n,i.d]));
+  return`<div class="between"><div><h1>${esc(A.name)}</h1><div class="small muted">${A.cat==='F'?'Feminino':'Masculino'} · ${A.age} anos · escalão ${AG(A.age)} · ${esc(A.city)}</div><div class="small muted">${esc(myClub().n)}</div></div><span class="big" style="font-size:44px">${overall(S.a)}</span></div>
+  <div class="small muted">Fitness ${Math.round(S.ctl)} · fadiga ${Math.round(S.fatigue)} · forma ${Math.round(form())}. A forma é fitness menos fadiga: treina com consistência e alivia antes das provas.</div>
+  ${groups}
+  <div class="card"><h2>${A.cat==='F'?'Rival':'Rival'}: ${esc(S.rival.nm)}</h2><div class="small">${S.rival.age} anos · escalão ${AG(S.rival.age)} · nota ${Math.round(S.rival.r)}</div><div class="small muted">Duelos: ${S.rival.beaten} vitórias, ${S.rival.lost} derrotas.</div></div>
+  <div class="card"><h2>Vida</h2><div class="small">${S.job?'Emprego a meio tempo: +320 € por semana, +6 de fadiga.':'Atleta a tempo inteiro: +10% nos ganhos.'} Custo de vida: 180 € por semana.</div>
+  ${S.injury?`<div class="small" style="color:var(--bad)">Lesão: ${esc(S.injuryName)} (${S.injury} semana(s)).</div>`:''}
+  ${S.job?(S.quitAsk?`<div class="msg"><b>Largar o emprego?</b><span class="small">Perdes 320 € por semana. Os patrocínios rendem ${eur(S.sponsors.reduce((a,s)=>a+s.weekly,0))} por semana.</span><div class="row"><button class="btn sm" data-act="quitYes">Sim, largar</button><button class="btn sm" data-act="quitNo">Cancelar</button></div></div>`:`<div><button class="btn sm" data-act="quit">Largar o emprego</button></div>`):`<div><button class="btn sm" data-act="job">Voltar ao emprego</button></div>`}</div>
+  <div class="card"><h2>Equipamento</h2>${gear.map(([a,b])=>`<div class="item"><span>${esc(a)}</span><span class="small muted">${esc(b)}</span></div>`).join('')}<div class="item"><span>Sapatilhas de treino</span><span class="small muted ${S.shoeKm>700?'chip bad':''}">${S.shoeKm} km</span></div></div>
+  <div class="card"><h2>Jogo</h2>${S.resetAsk?`<div class="row"><span class="small">Apagar esta carreira?</span><button class="btn sm" data-act="resetYes">Apagar e recomeçar</button><button class="btn sm" data-act="resetNo">Cancelar</button></div>`:`<div><button class="btn sm" data-act="reset">Nova carreira</button></div>`}</div>`;
+}
+function vClube(){
+  const c=myClub(),C=S.club,view=S.clubView||'semana';
+  const table=[{n:c.n,v:view==='divisao'?C.season:C.score,me:true},...C.others.map(o=>({n:o.n,v:view==='divisao'?o.season:o.score}))].sort((a,b)=>b.v-a.v);
+  const people=[...C.members.map(m=>({nm:m.nm,pts:m.pts})),{nm:'Tu',pts:C.myPts||0,me:true}].sort((a,b)=>b.pts-a.pts);
+  const fr=C.members.slice(0,3);
+  return`${S.flash?`<div class="flash" role="status">${esc(S.flash)}</div>`:''}
+  <div class="between"><h1>${esc(c.n)}</h1><span class="chip acc">verificado</span></div>
+  <div class="small muted">${c.members} membros · ${C.members.length+1} no jogo · divisão ${C.div} · ${table.findIndex(t=>t.me)+1}º</div>
+  <div class="seg">${[['semana','Semana'],['divisao','Divisão']].map(([k,l])=>`<button data-act="clubView" data-arg="${k}" aria-pressed="${view===k}">${l}</button>`).join('')}</div>
+  ${view==='semana'?(C.myPts!=null?`<span class="lbl">Classificação da semana, pontos</span><div class="lb">${people.slice(0,8).map((p,i)=>`<div class="it ${p.me?'me':''}"><span class="n">${i+1}</span><span>${esc(p.nm)}</span><span class="t">${p.pts}</span></div>`).join('')}</div>
+    <div class="card"><b>Pontuação do clube: ${C.score}</b><span class="small muted">Média do top 10 com ${Math.round(C.part*100)}% de membros ativos. Assim, clubes grandes e pequenos competem.</span></div>`:'<div class="small muted">A classificação aparece quando fechares a primeira semana.</div>')
+  :`<span class="lbl">Divisão ${C.div} · pontos da temporada</span><div class="lb">${table.map((t,i)=>`<div class="it ${t.me?'me':''}"><span class="n">${i+1}</span><span>${esc(t.n)}</span><span class="t">${t.v}</span></div>`).join('')}</div><div class="small muted">No fim da temporada o 1º sobe e o último desce.</div>`}
+  <div class="card acc"><b>${esc(c.ev.t)}</b><span class="small">${esc(c.ev.where)} · ${c.ev.sp==='bike'?'um treino de bike':'uma corrida'} nesse dia dá +15% e conta para o clube.</span></div>
+  <h2 style="margin-top:6px">Treinar juntos</h2>
+  <div class="card"><b>Long run de domingo</b><span class="small muted">Tu, ${fr.map(m=>esc(m.nm.split(' ')[0])).join(', ')}</span><div class="between"><div class="dots"><i></i><i></i><i></i><i></i></div><span class="small" style="color:var(--accent);font-weight:700">Corrida Z2 ao domingo: +15%</span></div></div>
+  <div class="card"><b>Desafio: mais horas em Z2</b>${S.chal?`<span class="small">${S.chal.won?'Ganhaste a semana passada':'A semana passada'}: tu ${dec(S.chal.me)} h · ${S.chal.fr.map(f=>`${esc(f.nm.split(' ')[0])} ${dec(f.h)} h`).join(' · ')}</span>`:'<span class="small muted">Começa quando fechares a primeira semana. Conta bike e corrida em Z2.</span>'}</div>
+  <div class="card acc"><b>Corre comigo</b><span class="small">Convida amigos com o teu código. Quem entra começa com um kit e 14 dias de Pro.</span><div class="between"><span class="code">${esc(S.invite)}</span><button class="btn sm" data-act="copy">Copiar código</button></div><span class="small muted">No protótipo o código ainda não chega a ninguém: os convites precisam do servidor.</span></div>`;
+}
+function vLoja(){
+  const cats=[...new Set(SHOP.map(i=>i.cat))];
+  return`${S.flash?`<div class="flash" role="status">${esc(S.flash)}</div>`:''}<div class="between"><h1>Loja</h1><span class="mono">${eur(S.money)}</span></div>
+  ${cats.map(c=>`<div class="card"><h2>${c}</h2>${SHOP.filter(i=>i.cat===c).map(i=>{const pr=price(i),own=S.owned[i.id],sub=i.sub&&S.subs[i.id];
+    const b=own?'<span class="chip good">Tens</span>':sub?`<button class="btn sm" data-act="unsub" data-arg="${i.id}">Cancelar</button>`:`<button class="btn sm" data-act="buy" data-arg="${i.id}">${S.money<pr?'Sem saldo':'Comprar'}</button>`;
+    return`<div class="item"><div><b>${i.n}</b> <span class="mono small">${eur(pr)}${i.sub?'/sem':''}</span><div class="small muted">${i.d}</div></div>${b}</div>`}).join('')}</div>`).join('')}
+  <div class="small muted">Marcas fictícias. Arte final dos produtos fica para o fim.</div>`;
+}
+function vCarreira(){
+  const act=S.sponsors.map(s=>`<div class="item"><div><b>${esc(s.n)}</b><div class="small muted">${eur(s.weekly)}/semana · ${eur(s.podium)} por pódio · faltam ${s.left} semanas</div></div><span class="chip good">Ativo</span></div>`).join('');
+  return`<div class="between"><h1>Carreira</h1><span class="small muted">Fama ${Math.round(S.fame)} · ${S.pts} pts</span></div>
+  <div class="card"><h2>Temporada ${season()}</h2>${CAL.map(r=>{const res=S.results.find(x=>x.id===r.id&&x.season===season()),L=S.legends[r.id],D=DIST[r.t];
+    const st=res?`${res.p}º/${res.N} · ${res.agP}º ${res.ag}`:r.w<wis()?'falhaste':!canEnter(r)?`<span style="color:var(--bad)">${whyNot(r)}</span>`:r.w===wis()?'este domingo':'inscrito';
+    return`<div class="item"><div><b>Sem. ${r.w} · ${esc(r.n)}</b><div class="small muted">${D.l} · água ${r.temp} °C · ${eur(r.fee)}${r.slot?` · vagas para o Algarve: top ${r.slot} do escalão`:''}</div><div class="small muted">Lenda local: ${L.nm===S.ath.name?'<b>tu</b>':esc(L.nm)} (${L.count} participações)</div></div><span class="small">${st}</span></div>`}).join('')}</div>
+  <div class="card"><h2>Patrocínios</h2>${act||'<span class="small muted">Ainda ninguém te paga. As propostas chegam à caixa de entrada quando a fama sobe.</span>'}
+    ${SPONSORS.filter(s=>!S.sponsors.find(x=>x.id===s.id)).map(s=>`<div class="item"><div><b>${s.n}</b><div class="small muted">${esc(s.d)}</div></div><span class="chip ${S.fame>=s.minFame?'warn':''}">fama ${s.minFame}</span></div>`).join('')}</div>
+  <div class="card"><h2>Resultados</h2>${S.results.length?`<div class="lb">${S.results.slice().reverse().map(r=>`<div class="it"><span class="n">${r.p}º</span><span>${esc(r.n)} <span class="small muted">· ${r.agP}º ${r.ag}</span></span><span class="t">${fmt(r.total)}</span></div>`).join('')}</div>`:'<span class="small muted">Ainda sem provas.</span>'}</div>
+  <div class="card"><h2>Mensagens</h2>${S.inbox.filter(m=>m.done).slice(0,8).map(m=>`<div class="small"><b>${esc(m.t)}</b> — ${esc(m.x)}</div>`).join('')||'<span class="small muted">Sem mensagens.</span>'}</div>`;
+}
+function render(){
+  document.getElementById('bar').innerHTML=vBar();
+  document.getElementById('tabs').innerHTML=vTabs();
+  document.getElementById('tabs').hidden=!S.created||!!(S.race&&S.race.stage!=='done'&&S.tab==='semana');
+  const V={semana:vSemana,atleta:vAtleta,clube:vClube,loja:vLoja,carreira:vCarreira};
+  document.getElementById('app').innerHTML=S.created?V[S.tab]():vOnboard();
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b)act(b.dataset.act,b.dataset.arg)});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.input&&S.ob){S.ob[t.dataset.input]=t.value;S.ob.err[t.dataset.input]='';
+  if(t.dataset.input==='age'){const a=parseInt(t.value,10),el=document.getElementById('ob-ag');if(el)el.textContent=a>=18&&a<=80?`Escalão ${AG(a)}`:'A idade define o teu escalão.'}save()}});
+document.addEventListener('change',async e=>{const t=e.target;
+  if(t.dataset.day){S.plan[+t.dataset.day]=t.value;save();render();const n=document.getElementById('d'+t.dataset.day);if(n)n.focus()}
+  if(t.dataset.change&&S.ob){S.ob[t.dataset.change]=t.value;save()}
+  if(t.dataset.file&&t.files.length){const files=[...t.files];
+    if(t.dataset.file==='ob'){const{acts,errs}=await readFiles(files);S.ob.imp=acts.length?{...attrsFromActs(acts),errs}:{n:0,errs:errs.length?errs:['Nenhuma corrida, bike ou natação encontrada.'],a:{},sports:{run:0,bike:0,swim:0}};S.ob.err.files='';save();render()}
+    else importWeek(files)}});
+function start(data){
+  S=(data&&data.v===2)?data:(load()||initState());
+  if(S.race&&S.race.stage==='running'){S.race.stage='done';S.race.shown=S.race.res.feed.length}
+  window.claude?.hot?.snapshot?.(()=>JSON.parse(JSON.stringify(S)));
+  render();
+}
+window.claude?.hot?.ready?window.claude.hot.ready(start):start(window.claude?.hot?.data??{});
+</script>
