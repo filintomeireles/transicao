@@ -1,10 +1,16 @@
+import { useState } from 'react';
 import { CALENDAR, DIST, SPONSORS, canEnter, eur, fmt, season, weekInSeason, whyNot, type GameState } from '../../engine';
+import { FeedbackForm } from '../Feedback';
 
 export function CareerScreen({ game }: { game: GameState }) {
   const wk = weekInSeason(game), se = season(game);
+  const [feedback, setFeedback] = useState(false);
   return (
     <>
       <div className="between"><h1>Carreira</h1><span className="small muted">Fama {Math.round(game.fame)} · {game.pts} pts</span></div>
+      {feedback
+        ? <FeedbackForm game={game} moment="carreira" onClose={() => setFeedback(false)} />
+        : <div><button className="btn sm" onClick={() => setFeedback(true)}>Dar a tua opinião sobre o jogo</button></div>}
 
       <div className="card">
         <h2>Temporada {se}</h2>

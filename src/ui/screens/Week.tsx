@@ -1,10 +1,12 @@
 import {
   ATTR, DAY_NAMES, DAYS, DIST, EVENTS, PRESETS, SESS, SESSION_KEYS, SPORT_NAME,
-  acceptOffer, addRealActivities, ageGroup, applyPreset, bonusFor, canEnter, dec, declineOffer, eur, myClub,
+  acceptOffer, addRealActivities, ageGroup, applyPreset, bonusFor, canEnter, coachTips, dec, declineOffer, eur, myClub,
   nextRace, projected, raceThisWeek, readFiles, removeReal, resolveEvent, setDay, weekInSeason, whyNot,
   type AttrKey, type GameState, type SessionKey
 } from '../../engine';
 import { Flash } from '../components';
+import { FeedbackPrompt } from '../Feedback';
+import { GuideCard } from '../guide';
 import type { Apply } from '../useGame';
 
 function Inbox({ game, apply }: { game: GameState; apply: Apply }) {
@@ -53,6 +55,8 @@ export function WeekScreen({ game, apply, flash, setFlash, onClose }: { game: Ga
   return (
     <>
       <Flash text={flash} />
+      <GuideCard game={game} where="week" apply={apply} />
+      <FeedbackPrompt game={game} apply={apply} />
       <Inbox game={game} apply={apply} />
       <div className="between"><h1>Plano da semana</h1><span className="small muted">{game.ath.cat} {ageGroup(game.ath.age)}</span></div>
       <div className="row">
@@ -94,6 +98,11 @@ export function WeekScreen({ game, apply, flash, setFlash, onClose }: { game: Ga
             </div>
           );
         })}
+      </div>
+
+      <div className="card coach" aria-label="Treinador">
+        <b>Treinador</b>
+        {coachTips(game).map((tip, i) => <div key={i} className={`tip ${tip.level}`}>{tip.text}</div>)}
       </div>
 
       <div className="small muted mono">

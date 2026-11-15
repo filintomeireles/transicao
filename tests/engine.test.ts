@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  BAL, CALENDAR, PROFILES, addRealActivities, buy, createAthlete, finishRace, form, processWeek, runRace,
-  setSeed, weekInSeason, type GameState, type NewAthlete
+  BAL, CALENDAR, NEUTRAL_SCORE, PROFILES, addRealActivities, applySprint, applyTransition, buy, coachTips, createAthlete,
+  finishLiveRace, finishRace, form, processWeek, runRace, setSeed, sprintOpponent, startRace, weekInSeason,
+  type GameState, type NewAthlete
 } from '../src/engine';
 
 const base: NewAthlete = { name: 'Teste', cat: 'M', age: '38', city: 'Porto', club: 'pacos', start: 'preset', preset: 'runner' };
@@ -95,6 +96,53 @@ describe('prova', () => {
   it('é reproduzível com a mesma semente', () => {
     const run = () => { setSeed(7); const s = newGame(); for (let i = 0; i < 3; i++) processWeek(s); runRace(s); return s.race!.res!.me.total; };
     expect(run()).toBe(run());
+  });
+});
+
+describe('prova interativa', () => {
+  const toRace = () => { const s = newGame(); for (let i = 0; i < 3; i++) processWeek(s); startRace(s); return s; };
+  const myTotal = (s: GameState) => { const me = s.race!.live!.field.find(f => f.me)!; return me.swim + me.t1 + me.bike + me.t2 + me.run; };
+
+  it('uma transição perfeita poupa tempo e uma má custa', () => {
+    const s = toRace();
+    const base = myTotal(s);
+    applyTransition(s, 1, 1);
+    expect(myTotal(s)).toBeLessThan(base);
+    applyTransition(s, 1, 0);
+    expect(myTotal(s)).toBeGreaterThan(base);
+    applyTransition(s, 1, NEUTRAL_SCORE);
+    expect(myTotal(s)).toBeCloseTo(base, 6);
+  });
+
+  it('o sprint final decide quem chega primeiro', () => {
+    const s = toRace();
+    const L = s.race!.live!, me = L.field.find(f => f.me)!, other = L.field.find(f => !f.me)!;
+    const sum = (f: typeof me) => f.swim + f.t1 + f.bike + f.t2 + f.run;
+    me.run += sum(other) - sum(me) + 2; // chega 2 s depois do outro
+    const opp = sprintOpponent(s);
+    expect(opp?.nm).toBe(other.nm);
+    applySprint(s, true);
+    expect(sum(me)).toBeLessThan(sum(other));
+    expect(s.race!.live!.sprint).toEqual({ nm: other.nm, won: true });
+    finishLiveRace(s);
+    expect(s.race!.stage).toBe('done');
+    expect(s.race!.res!.timeline.some(l => l.text.includes('Sprint final'))).toBe(true);
+  });
+});
+
+describe('treinador', () => {
+  it('avisa quando a semana de prova tem sessões duras', () => {
+    const s = newGame();
+    processWeek(s); processWeek(s);
+    s.plan = ['runInt', 'bikeInt', 'brick', 'swimTec', 'rest', 'runZ2', 'bikeZ2'];
+    expect(coachTips(s)[0]).toMatchObject({ level: 'warn' });
+    expect(coachTips(s)[0].text).toContain('Prova no domingo');
+  });
+
+  it('aponta a disciplina que falta no plano', () => {
+    const s = newGame();
+    s.plan = ['runZ2', 'bikeZ2', 'rest', 'runZ2', 'bikeZ2', 'rest', 'runZ2'];
+    expect(coachTips(s).some(t => t.text.includes('natação'))).toBe(true);
   });
 });
 

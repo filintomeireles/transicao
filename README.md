@@ -18,6 +18,10 @@ npm run build      # versão de produção em dist/
 O jogo está publicado num link do Claude (artifact "Transição"). Para outras pessoas o abrirem,
 partilha-o pelo menu **Partilhar** da página. Cada testador grava a carreira no seu próprio browser.
 
+O jogo pede opinião depois da primeira prova e no fim de cada temporada (e a qualquer momento em
+Carreira). O testador envia o texto por WhatsApp ou copia-o: as respostas chegam-te por mensagem,
+não ficam guardadas num servidor. O texto inclui a temporada, a semana, a nota do atleta e o número de provas.
+
 Para atualizar o link depois de mudanças: `npm run build` e voltar a publicar `web/artifact.html`
 com `dist/assets/app.js` e `dist/assets/app.css`.
 

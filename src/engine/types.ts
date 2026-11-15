@@ -142,9 +142,37 @@ export interface RaceResult {
   rivalNm: string;
 }
 
+/** Um atleta numa prova a decorrer: tempos por segmento (segundos). */
+export interface LiveEntrant {
+  nm: string;
+  age: number;
+  ag: string;
+  tag: '' | 'rival' | 'clube' | 'tu';
+  club: string;
+  swim: number;
+  t1: number;
+  bike: number;
+  t2: number;
+  run: number;
+  ev: [Sport, string][];
+  me?: boolean;
+}
+
+/** Prova a decorrer: o pelotão já está simulado, mas o jogador ainda mexe nas transições e no sprint final. */
+export interface LiveRace {
+  field: LiveEntrant[];
+  baseT1: number;
+  baseT2: number;
+  t1Score: number | null;
+  t2Score: number | null;
+  sprint: { nm: string; won: boolean } | null;
+  sprintDone: boolean;
+}
+
 export interface RaceState extends RaceDef {
-  stage: 'setup' | 'done';
+  stage: 'setup' | 'live' | 'done';
   ch: RaceChoices;
+  live?: LiveRace;
   res?: RaceResult;
 }
 
@@ -203,4 +231,8 @@ export interface GameState {
   results: ResultRecord[];
   race: RaceState | null;
   last: WeekSummary | null;
+  /** Passos do guia da primeira semana já vistos. */
+  guide?: string[];
+  /** Pedidos de opinião já mostrados (por momento do jogo). */
+  asked?: string[];
 }

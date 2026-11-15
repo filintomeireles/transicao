@@ -1,29 +1,28 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
-  DIST, GELS, changeGels, dec, finishRace, fmt, form, myClub, runRace, setRaceChoice, wetsuit,
+  DIST, GELS, changeGels, dec, finishRace, fmt, form, myClub, runRace, setRaceChoice, startRace, wetsuit,
   type GameState, type RaceChoices, type ResultRow
 } from '../../engine';
 import { Seg } from '../components';
+import { GuideCard } from '../guide';
 import { RaceView } from './RaceView';
+import { ShareCard } from './ShareCard';
 import type { Apply } from '../useGame';
 
 type View = 'geral' | 'escalao' | 'clube';
 
-export function RaceScreen({ game, apply, onRunning, onDone }: { game: GameState; apply: Apply; onRunning: (r: boolean) => void; onDone: () => void }) {
+export function RaceScreen({ game, apply, onDone }: { game: GameState; apply: Apply; onDone: () => void }) {
   const r = game.race!;
   const D = DIST[r.t];
-  const [live, setLive] = useState(false);
   const [view, setView] = useState<View>('escalao');
+  const [card, setCard] = useState(false);
   const res = r.res;
-  const running = live && !!res;
-  const endLive = useCallback(() => { setLive(false); window.scrollTo(0, 0); }, []);
-
-  useEffect(() => { onRunning(running); }, [running, onRunning]);
+  const endLive = useCallback(() => window.scrollTo(0, 0), []);
 
   function start() {
-    apply(s => runRace(s));
-    // Com movimento reduzido salta diretamente para o resultado.
-    setLive(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    // Com movimento reduzido não há animação nem minijogos: o resultado sai logo.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) apply(s => runRace(s));
+    else apply(s => startRace(s));
     window.scrollTo(0, 0);
   }
 
@@ -32,6 +31,7 @@ export function RaceScreen({ game, apply, onRunning, onDone }: { game: GameState
     const choose = <K extends keyof RaceChoices>(k: K) => (v: RaceChoices[K]) => apply(s => setRaceChoice(s, k, v));
     return (
       <>
+        <GuideCard game={game} where="race" apply={apply} />
         <h1>{r.n}</h1>
         <div className="small muted">{D.l} · {D.swim} m · {D.bike} km · {dec(D.run)} km · {n} atletas na prova {game.ath.cat === 'F' ? 'feminina' : 'masculina'}</div>
         <div className="small">Água a {r.temp} °C · {r.temp < 22 ? (wetsuit(game) ? 'fato permitido e tens um' : 'fato permitido, mas não tens') : 'sem fatos'} · forma {f >= 0 ? '+' : ''}{Math.round(f)}</div>
@@ -54,8 +54,8 @@ export function RaceScreen({ game, apply, onRunning, onDone }: { game: GameState
     );
   }
 
+  if (r.stage === 'live') return <RaceView game={game} apply={apply} onEnd={endLive} />;
   if (!res) return null;
-  if (running) return <RaceView res={res} race={r} onEnd={endLive} />;
 
   const list = res.lists[view];
   const number = (x: ResultRow, i: number) => (view === 'geral' ? x.pos : view === 'escalao' && x.me ? res.agP : i + 1);
@@ -89,6 +89,8 @@ export function RaceScreen({ game, apply, onRunning, onDone }: { game: GameState
       {res.slot && <div className="small" style={{ color: 'var(--accent)', fontWeight: 700 }}>{res.slot}</div>}
       {res.legend && <div className="small" style={{ color: 'var(--accent)', fontWeight: 700 }}>{res.legend}</div>}
       <div className="small">{res.beatRival ? `Bateste ${res.rivalNm}. Moral +5.` : `${res.rivalNm} ficou à tua frente desta vez.`}</div>
+      {card ? <ShareCard game={game} race={r} res={res} onClose={() => setCard(false)} />
+        : <button className="btn" onClick={() => setCard(true)}>Cartão para partilhar</button>}
       <button className="btn primary" onClick={() => { apply(s => finishRace(s)); onDone(); }}>Continuar</button>
     </>
   );
