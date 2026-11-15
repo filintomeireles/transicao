@@ -1,8 +1,8 @@
 // Ações do jogador. Todas alteram o estado recebido e, quando faz sentido, devolvem uma mensagem.
-import { EVENTS, GELS, PRESETS, SHOP, SPONSORS } from './data';
+import { CALENDAR, EVENTS, GELS, PRESETS, SHOP, SPONSORS } from './data';
 import { clamp, eur } from './format';
 import type { GameState, RaceChoices, SessionKey } from './types';
-import { price } from './world';
+import { entries, price, weekInSeason } from './world';
 
 export function resolveEvent(s: GameState, msgIndex: number, option: number): void {
   const m = s.inbox[msgIndex];
@@ -67,6 +67,16 @@ export function setRaceChoice<K extends keyof RaceChoices>(s: GameState, key: K,
   if (s.race?.stage === 'setup') s.race.ch[key] = value;
 }
 export function changeGels(s: GameState, delta: number): void {
-  if (s.race?.stage === 'setup') s.race.ch.gels = clamp(s.race.ch.gels + delta, 0, 8);
+  if (s.race?.stage === 'setup') s.race.ch.gels = clamp(s.race.ch.gels + delta, 0, 16);
 }
 export const recommendedGels = (s: GameState): number | null => (s.race ? GELS[s.race.t] : null);
+
+/** Inscreve ou desinscreve numa prova. Só uma prova por semana; provas passadas ou desta semana com a prova já em curso não mudam. */
+export function toggleEntry(s: GameState, id: string): void {
+  const r = CALENDAR.find(x => x.id === id);
+  if (!r || r.w < weekInSeason(s) || (s.race && r.w === weekInSeason(s))) return;
+  const list = entries(s);
+  s.entries = list.includes(id)
+    ? list.filter(x => x !== id)
+    : [...list.filter(x => CALENDAR.find(c => c.id === x)?.w !== r.w), id];
+}

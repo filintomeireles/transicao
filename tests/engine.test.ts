@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   BAL, CALENDAR, NEUTRAL_SCORE, PROFILES, addRealActivities, applySprint, applyTransition, buy, coachTips, createAthlete,
-  finishLiveRace, finishRace, form, processWeek, resolveEvent, runRace, setSeed, sprintOpponent, startRace, toggleRealRace, weekInSeason,
+  canEnter, finishLiveRace, finishRace, form, isEntered, processWeek, resolveEvent, runRace, setSeed, sprintOpponent, startRace,
+  takeWeek, toggleEntry, toggleRealRace, weekInSeason, weeksAvailable, whyNot,
   type GameState, type NewAthlete
 } from '../src/engine';
 
@@ -206,5 +207,58 @@ describe('loja', () => {
     buy(s, 'aero');
     expect(s.owned.aero).toBe(true);
     expect(s.money).toBe(600);
+  });
+});
+
+describe('ritmo diário', () => {
+  it('começa com a reserva cheia, gasta uma semana de cada vez e recarrega por dia', () => {
+    const s = newGame();
+    const day = 20000;
+    expect(weeksAvailable(s, day)).toBe(BAL.paceStart);
+    for (let i = 0; i < BAL.paceStart; i++) expect(takeWeek(s, day)).toBe(true);
+    expect(takeWeek(s, day)).toBe(false);
+    expect(weeksAvailable(s, day + 1)).toBe(BAL.pacePerDay);
+    expect(weeksAvailable(s, day + 30)).toBe(BAL.paceCap);
+  });
+});
+
+describe('calendário e mundial', () => {
+  it('só uma prova por semana e as provas não inscritas não se correm', () => {
+    const s = newGame();
+    toggleEntry(s, 'povoa');
+    expect(isEntered(s, 'povoa')).toBe(false);
+    processWeek(s); processWeek(s); processWeek(s);
+    expect(s.race).toBeNull();
+    expect(weekInSeason(s)).toBe(4);
+    toggleEntry(s, 'viseu');
+    expect(isEntered(s, 'viseu')).toBe(true);
+    toggleEntry(s, 'povoa'); // semana já passada: não muda
+    expect(isEntered(s, 'povoa')).toBe(false);
+  });
+
+  it('o mundial pede vaga, e o Algarve dá-a ao top 3 do escalão', () => {
+    const s = newGame();
+    const mundial = CALENDAR.find(r => r.id === 'mundial')!;
+    expect(canEnter(s, mundial)).toBe(false);
+    expect(whyNot(s, mundial)).toContain('vaga');
+    s.slots.mundial = true;
+    expect(canEnter(s, mundial)).toBe(true);
+  });
+
+  it('acabar o Mundial fica no palmarés', () => {
+    const s = newGame();
+    s.a = { swimTec: 95, swimEnd: 95, bikePow: 95, bikeEnd: 95, runSpd: 95, runEnd: 95, trans: 95, str: 95, mental: 95 };
+    s.money = 5000;
+    s.slots.mundial = true;
+    for (let i = 0; i < 20; i++) {
+      s.slots.mundial = true;
+      s.money = 5000;
+      processWeek(s);
+      if (s.race) { if (s.race.id === 'mundial') break; runRace(s); finishRace(s); }
+    }
+    expect(s.race?.id).toBe('mundial');
+    runRace(s);
+    expect(s.titles?.length).toBe(1);
+    expect(s.titles![0]).toMatch(/Mundo|Mundial/);
   });
 });

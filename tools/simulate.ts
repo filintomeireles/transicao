@@ -25,12 +25,12 @@ const POLICIES: Record<string, Policy> = {
 };
 const PROFILES: [ProfileKey, StartKind][] = [['runner', 'preset'], ['cyclist', 'preset'], ['swimmer', 'preset']];
 
-interface Career { rating: number[]; money: number[]; pct: number[][]; injuries: number; podium: boolean; quit: boolean; got: Record<string, number>; rival: number[]; algarve: number }
+interface Career { rating: number[]; money: number[]; pct: number[][]; injuries: number; podium: boolean; quit: boolean; got: Record<string, number>; rival: number[]; algarve: number; mundial: number; firstMundial: number | null; titles: number }
 
 function career(policy: Policy, profile: ProfileKey, start: StartKind, cat: Cat, seed: number): Career {
   setSeed(seed);
   const s = createAthlete({ name: 'Sim', cat, age: '38', city: 'X', club: 'pacos', start, preset: profile }, null);
-  const c: Career = { rating: [overall(s.a)], money: [], pct: [[], [], []], injuries: 0, podium: false, quit: false, got: {}, rival: [], algarve: 0 };
+  const c: Career = { rating: [overall(s.a)], money: [], pct: [[], [], []], injuries: 0, podium: false, quit: false, got: {}, rival: [], algarve: 0, mundial: 0, firstMundial: null, titles: 0 };
   for (let w = 1; w <= WEEKS; w++) {
     s.inbox.forEach((m, i) => {
       if (m.done) return;
@@ -57,11 +57,13 @@ function career(policy: Policy, profile: ProfileKey, start: StartKind, cat: Cat,
       if (sea <= 3) c.pct[sea - 1].push(r.p / r.N);
       if (r.p <= 3) c.podium = true;
       if (s.race.id === 'algarve') c.algarve++;
+      if (s.race.id === 'mundial') { c.mundial++; c.firstMundial ??= sea; }
       c.rival.push(r.beatRival ? 1 : 0);
       finishRace(s);
     }
     if (w % 20 === 0) { c.rating.push(overall(s.a)); c.money.push(s.money); }
   }
+  c.titles = (s.titles ?? []).filter(t => t.startsWith('Campe')).length;
   return c;
 }
 
@@ -71,7 +73,7 @@ const r0 = (x: number) => (Number.isNaN(x) ? '—' : String(Math.round(x)));
 const pctOf = (x: number) => (Number.isNaN(x) ? '—' : Math.round(x * 100) + '%');
 
 console.log(`${RUNS} carreiras por perfil e categoria, ${WEEKS} semanas, perfis prontos.\n`);
-console.log(['estratégia', 'nota início→T1→T2→T3', 'lugar top% T1/T2/T3', 'lesões/temp', 'pódio', 'vence rival', 'Algarve/temp', 'dinheiro T1/T2/T3', 'rodas', 'aero', 'larga emprego'].join(' | '));
+console.log(['estratégia', 'nota início→T1→T2→T3', 'lugar top% T1/T2/T3', 'lesões/temp', 'pódio', 'vence rival', 'Algarve/temp', 'dinheiro T1/T2/T3', 'rodas', 'aero', 'larga emprego', 'chega ao Mundial', 'Mundial/temp', 'títulos'].join(' | '));
 let seed = 1;
 for (const [name, policy] of Object.entries(POLICIES)) {
   const cs: Career[] = [];
@@ -89,6 +91,9 @@ for (const [name, policy] of Object.entries(POLICIES)) {
     [0, 1, 2].map(i => r0(avg(cs.map(c => c.money[i]).filter(x => x != null)))).join('/'),
     bought('wheels'),
     bought('aero'),
-    pctOf(avg(cs.map(c => (c.quit ? 1 : 0))))
+    pctOf(avg(cs.map(c => (c.quit ? 1 : 0)))),
+    pctOf(avg(cs.map(c => (c.mundial ? 1 : 0)))) + (cs.some(c => c.firstMundial) ? ` (T${median(cs.map(c => c.firstMundial).filter((x): x is number => x != null))})` : ''),
+    (avg(cs.map(c => c.mundial)) / seasons).toFixed(2),
+    avg(cs.map(c => c.titles)).toFixed(2)
   ].join(' | '));
 }

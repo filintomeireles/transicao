@@ -35,23 +35,36 @@ export const PRESETS: Record<'Típica' | 'Carga' | 'Taper', SessionKey[]> = {
 export const DIST: Record<RaceType, { swim: number; bike: number; run: number; l: string }> = {
   sprint: { swim: 750, bike: 20, run: 5, l: 'Sprint' },
   olimp: { swim: 1500, bike: 40, run: 10, l: 'Olímpico' },
-  meia: { swim: 1900, bike: 90, run: 21.1, l: 'Meia distância' }
+  meia: { swim: 1900, bike: 90, run: 21.1, l: 'Meia distância' },
+  longa: { swim: 3800, bike: 180, run: 42.2, l: 'Longa distância' }
 };
-export const GELS: Record<RaceType, number> = { sprint: 0, olimp: 2, meia: 6 };
+export const GELS: Record<RaceType, number> = { sprint: 0, olimp: 2, meia: 6, longa: 12 };
 export const RACE_REWARD: Record<RaceType, { prize: number; fame: number; pts: number; fat: number }> = {
   sprint: { prize: 1, fame: 1, pts: 1, fat: 12 },
   olimp: { prize: 1.6, fame: 1.4, pts: 1.5, fat: 20 },
-  meia: { prize: 3, fame: 2.2, pts: 2.5, fat: 32 }
+  meia: { prize: 3, fame: 2.2, pts: 2.5, fat: 32 },
+  longa: { prize: 5, fame: 3.5, pts: 3.5, fat: 45 }
 };
 
+// Uma temporada de 20 semanas. As provas "core" ficam inscritas por defeito; as outras escolhem-se em Carreira.
+// Caminho para o mundial: Lisboa ou Taça Ibérica dão vaga para o Algarve; o Algarve e a longa distância de Vitória
+// dão vaga para o Mundial. O Grande Prémio Atlântico é por convite (fama) e paga como uma prova profissional.
 export const CALENDAR: RaceDef[] = [
-  { id: 'povoa', w: 3, n: 'Sprint da Póvoa', t: 'sprint', temp: 17, fee: 30, travel: 15, lvl: 46, nM: 46, nF: 24 },
-  { id: 'viana', w: 6, n: 'Olímpico de Viana', t: 'olimp', temp: 18, fee: 55, travel: 30, lvl: 50, nM: 58, nF: 30 },
-  { id: 'aveiro', w: 9, n: 'Sprint de Aveiro', t: 'sprint', temp: 20, fee: 30, travel: 40, lvl: 50, nM: 50, nF: 28 },
-  { id: 'lisboa', w: 12, n: 'Olímpico de Lisboa', t: 'olimp', temp: 21, fee: 65, travel: 120, lvl: 54, nM: 70, nF: 40, slot: 1 },
-  { id: 'iberica', w: 16, n: 'Taça Ibérica · Olímpico', t: 'olimp', temp: 23, fee: 90, travel: 220, lvl: 62, nM: 60, nF: 36, minPts: 60, slot: 2 },
-  { id: 'algarve', w: 20, n: 'Meia distância do Algarve', t: 'meia', temp: 24, fee: 150, travel: 260, lvl: 58, nM: 60, nF: 34, needSlot: true, altPts: 170 }
+  { id: 'povoa', w: 3, n: 'Sprint da Póvoa', t: 'sprint', tier: 'regional', core: true, temp: 17, fee: 30, travel: 15, lvl: 46, nM: 46, nF: 24 },
+  { id: 'viseu', w: 5, n: 'Sprint de Viseu', t: 'sprint', tier: 'regional', temp: 19, fee: 30, travel: 25, lvl: 47, nM: 44, nF: 22 },
+  { id: 'viana', w: 6, n: 'Olímpico de Viana', t: 'olimp', tier: 'regional', core: true, temp: 18, fee: 55, travel: 30, lvl: 50, nM: 58, nF: 30 },
+  { id: 'coimbra', w: 8, n: 'Olímpico de Coimbra', t: 'olimp', tier: 'regional', temp: 20, fee: 50, travel: 50, lvl: 51, nM: 52, nF: 28 },
+  { id: 'aveiro', w: 9, n: 'Sprint de Aveiro', t: 'sprint', tier: 'regional', core: true, temp: 20, fee: 30, travel: 40, lvl: 50, nM: 50, nF: 28 },
+  { id: 'sevilha', w: 11, n: 'Meia distância de Sevilha', t: 'meia', tier: 'nacional', temp: 22, fee: 120, travel: 180, lvl: 57, nM: 60, nF: 32 },
+  { id: 'lisboa', w: 12, n: 'Olímpico de Lisboa', t: 'olimp', tier: 'nacional', core: true, temp: 21, fee: 65, travel: 120, lvl: 54, nM: 70, nF: 40, slot: 1, slotTo: 'algarve' },
+  { id: 'vitoria', w: 14, n: 'Longa distância de Vitória', t: 'longa', tier: 'internacional', temp: 20, fee: 250, travel: 300, lvl: 60, nM: 70, nF: 36, slot: 1, slotTo: 'mundial' },
+  { id: 'iberica', w: 16, n: 'Taça Ibérica · Olímpico', t: 'olimp', tier: 'nacional', core: true, temp: 23, fee: 90, travel: 220, lvl: 62, nM: 60, nF: 36, minPts: 60, slot: 2, slotTo: 'algarve' },
+  { id: 'atlantico', w: 17, n: 'Grande Prémio Atlântico (convite)', t: 'meia', tier: 'pro', temp: 21, fee: 0, travel: 150, lvl: 66, nM: 40, nF: 24, minFame: 60, prizeMult: 3 },
+  { id: 'algarve', w: 18, n: 'Meia distância do Algarve', t: 'meia', tier: 'nacional', core: true, temp: 24, fee: 150, travel: 260, lvl: 58, nM: 60, nF: 34, needSlot: true, altPts: 170, slot: 1, slotTo: 'mundial' },
+  { id: 'mundial', w: 20, n: 'Mundial de Longa Distância · Ilha das Brasas', t: 'longa', tier: 'mundial', core: true, temp: 25, fee: 400, travel: 600, lvl: 74, nM: 80, nF: 50, needSlot: true, prizeMult: 4 }
 ];
+export const CORE_RACES = CALENDAR.filter(r => r.core).map(r => r.id);
+export const raceById = (id: string): RaceDef | undefined => CALENDAR.find(r => r.id === id);
 
 export const CLUBS: ClubDef[] = [
   { id: 'pacos', n: 'Paços Run Club', members: 312, ev: { d: 1, t: 'Corrida de grupo · ter 19h', where: 'Junto ao rio', sp: 'run' } },

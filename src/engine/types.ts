@@ -3,7 +3,8 @@ export type Sport = 'swim' | 'bike' | 'run' | 'gen';
 export type AttrKey = 'swimTec' | 'swimEnd' | 'bikePow' | 'bikeEnd' | 'runSpd' | 'runEnd' | 'trans' | 'str' | 'mental';
 export type Attrs = Record<AttrKey, number>;
 export type SessionKey = 'rest' | 'swimTec' | 'swimEnd' | 'bikeZ2' | 'bikeInt' | 'runZ2' | 'runInt' | 'brick' | 'str';
-export type RaceType = 'sprint' | 'olimp' | 'meia';
+export type RaceType = 'sprint' | 'olimp' | 'meia' | 'longa';
+export type RaceTier = 'regional' | 'nacional' | 'internacional' | 'pro' | 'mundial';
 export type StartKind = 'files' | 'preset' | 'filinto';
 export type ProfileKey = 'runner' | 'cyclist' | 'swimmer';
 
@@ -101,10 +102,19 @@ export interface RaceDef {
   lvl: number;
   nM: number;
   nF: number;
+  tier: RaceTier;
+  /** Inscrita por defeito no início de cada temporada. */
+  core?: boolean;
+  /** Vagas por escalão (top `slot`) para a prova `slotTo`. */
   slot?: number;
+  slotTo?: string;
   minPts?: number;
+  /** Prova por convite: só com esta fama. */
+  minFame?: number;
   needSlot?: boolean;
   altPts?: number;
+  /** Multiplicador de prémios (circuito profissional, mundial). */
+  prizeMult?: number;
 }
 
 export interface RaceChoices {
@@ -237,6 +247,13 @@ export interface GameState {
   guide?: string[];
   /** Pedidos de opinião já mostrados (por momento do jogo). */
   asked?: string[];
+  /** Provas em que estás inscrito nesta temporada (ids). */
+  entries?: string[];
+  /** Títulos da carreira (palmarés). */
+  titles?: string[];
+  /** Semanas que ainda podes jogar hoje e o dia em que a reserva foi atualizada. */
+  bank?: number;
+  bankDay?: number;
   /** Semanas seguidas com pelo menos 3 treinos reais. */
   realStreak?: number;
   /** Melhor série de semanas com treino real. */

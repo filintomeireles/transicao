@@ -262,6 +262,7 @@ export function endWeek(s: GameState): void {
   if (weekInSeason(s) === 1) {
     s.ath.age++;
     s.slots = {};
+    s.entries = undefined; // volta às provas por defeito; o jogador muda em Carreira
     const lastPts = s.pts;
     s.pts = 0;
     s.inbox.unshift({ k: 'msg', t: `Começa a temporada ${season(s)}`, x: `Fizeste anos: agora tens ${s.ath.age}, escalão ${ageGroup(s.ath.age)}. Acabaste a temporada com ${lastPts} pontos de ranking; o ranking recomeça do zero. Os adversários também treinaram no inverno.`, done: true });

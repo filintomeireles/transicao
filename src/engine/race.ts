@@ -3,7 +3,7 @@ import { ageGroup, clamp, dec, fmt, pace } from './format';
 import { nameFor } from './athlete';
 import { gauss, pick, random, rnd, shuffle } from './rng';
 import type { Attrs, GameState, LiveEntrant, LiveRace, RaceChoices, RaceDef, ResultRow, Sport, TimedLine, TraceRow } from './types';
-import { bikeGear, form, myClub, season, wetsuit } from './world';
+import { bikeGear, form, myClub, raceName, season, wetsuit } from './world';
 import { endWeek } from './week';
 
 export interface RaceContext { form: number; fat?: number; bike: number; ws: number; wsFast?: boolean; shoe: number }
@@ -171,12 +171,25 @@ export function finishLiveRace(s: GameState): void {
   const timeline = buildTimeline(s, r, L, out);
 
   const rt = RACE_REWARD[r.t];
-  const prize = p <= 3 ? [300, 150, 80][p - 1] * rt.prize : 0;
+  const prize = p <= 3 ? [300, 150, 80][p - 1] * rt.prize * (r.prizeMult ?? 1) : 0;
   const fame = (Math.max(0, N * 0.5 - p) / N) * 20 * rt.fame + 1 + (agP === 1 ? 2 : 0);
   const pts = Math.round(Math.max(0, 1 - (p - 1) / N) * 40 * rt.pts);
   const bonus = p <= 3 ? s.sponsors.reduce((sum, sp) => sum + sp.podium, 0) : 0;
   let slot = '';
-  if (r.slot && agP <= r.slot) { s.slots.algarve = true; slot = 'Vaga para a Meia distância do Algarve'; }
+  if (r.slot && r.slotTo && agP <= r.slot) { s.slots[r.slotTo] = true; slot = `Vaga para ${raceName(r.slotTo)}`; }
+  // Títulos: só o Mundial entra no palmarés como título.
+  if (r.tier === 'mundial') {
+    const champ = s.ath.cat === 'F' ? 'Campeã' : 'Campeão';
+    const title = p === 1 ? `${champ} do Mundo de Longa Distância (temporada ${season(s)})`
+      : agP === 1 ? `${champ} do Mundo, escalão ${me.ag} (temporada ${season(s)})` : '';
+    const text = title || `${agP}${o} no escalão ${me.ag} do Mundial (temporada ${season(s)})`;
+    s.titles = [...(s.titles ?? []), text];
+    s.fame += title ? 15 : 6;
+    s.inbox.unshift(title
+      ? { k: 'msg', t: `${champ} do mundo!`, x: `${title}. Chegaste ao topo. A carreira continua: defende o título.`, done: true }
+      : { k: 'msg', t: 'Acabaste o Mundial', x: `${text}. Chegar ao Mundial já é o sonho de muitos. Para o ano há mais.`, done: true });
+  }
+  s.legends[r.id] ??= { nm: nameFor(s.ath.cat), count: 3 };
   const leg = s.legends[r.id];
   let legend = '';
   if ((s.raceCount[r.id] ?? 0) > leg.count) { leg.nm = s.ath.name; leg.count = s.raceCount[r.id]; legend = `És a lenda local de ${r.n}.`; }

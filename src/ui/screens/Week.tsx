@@ -38,7 +38,7 @@ function Inbox({ game, apply }: { game: GameState; apply: Apply }) {
   );
 }
 
-export function WeekScreen({ game, apply, flash, setFlash, onClose }: { game: GameState; apply: Apply; flash: string; setFlash: (t: string) => void; onClose: () => void }) {
+export function WeekScreen({ game, apply, flash, setFlash, onClose, weeksLeft }: { game: GameState; apply: Apply; flash: string; setFlash: (t: string) => void; onClose: () => void; weeksLeft: number | null }) {
   const race = raceThisWeek(game), enter = !!race && canEnter(game, race), pj = projected(game), ev = myClub(game).ev;
   const nr = nextRace(game), L = game.last;
 
@@ -110,6 +110,7 @@ export function WeekScreen({ game, apply, flash, setFlash, onClose }: { game: Ga
         Carga {pj.load} TL · fadiga prevista {Math.round(pj.fatigue)} · forma prevista {pj.form >= 0 ? '+' : ''}{Math.round(pj.form)}
         {game.injury ? ` · lesão (${game.injuryName})` : ''}{game.rain ? ' · chuva' : ''}
       </div>
+      {!nr && <div className="small">Não estás inscrito em mais provas esta temporada. Escolhe-as em Carreira.</div>}
       {nr && (
         <div className="small">
           Próxima prova: <b>{nr.n}</b> {nr.w === weekInSeason(game) ? 'este domingo' : `daqui a ${nr.w - weekInSeason(game)} semana(s)`}
@@ -126,6 +127,13 @@ export function WeekScreen({ game, apply, flash, setFlash, onClose }: { game: Ga
         <span className="small muted">FIT, GPX, TCX</span>
       </div>
       <button className="btn primary" onClick={onClose}>{enter ? 'Fechar semana e ir para a prova' : 'Fechar semana'}</button>
+      {weeksLeft != null && (
+        <div className="small muted" style={{ textAlign: 'center' }}>
+          {weeksLeft > 0
+            ? `Podes jogar ${weeksLeft} semana${weeksLeft === 1 ? '' : 's'} hoje · mais ${BAL.pacePerDay} por dia, até ${BAL.paceCap}`
+            : `Sem semanas por hoje · amanhã tens mais ${BAL.pacePerDay}`}
+        </div>
+      )}
 
       {L && (
         <div className="card">

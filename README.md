@@ -13,6 +13,11 @@ npm run simulate   # simulador de equilíbrio: npm run simulate -- 30 60
 npm run build      # versão de produção em dist/
 ```
 
+## Ritmo do jogo
+
+Cada dia real dá 2 semanas de jogo, que se acumulam até 7 (`BAL.pacePerDay`, `BAL.paceCap` em
+`src/engine/balance.ts`). Para testes internos sem limite, abre o jogo com `?ritmo=livre` no endereço.
+
 ## Testadores (versão web)
 
 O jogo está publicado num link do Claude (artifact "Transição"). Para outras pessoas o abrirem,

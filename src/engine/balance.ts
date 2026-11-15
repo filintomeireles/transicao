@@ -29,6 +29,10 @@ export const BAL = {
   fatDecayRealRest: 0.65, // descanso real numa semana com treino real
   // clube: patrocinador paga por evento a que vais, conforme a divisão
   clubPay: [0, 40, 20, 10] as readonly number[],
+  // ritmo: semanas de jogo por dia real, acumuláveis até ao teto (igual para todos, não se compra)
+  pacePerDay: 2,
+  paceCap: 7,
+  paceStart: 7,
   // categoria feminina: os perfis prontos são ritmos masculinos
   fOffset: 7
 } as const;
