@@ -4,13 +4,14 @@ import {
   type GameState, type TraceRow
 } from '../../engine';
 import type { Apply } from '../useGame';
+import { Icon, type IconName } from '../icons';
 import { SprintGame, TransitionGame } from './Minigames';
 
 // Percurso desenhado: proporção de ecrã de cada segmento (natação, T1, bike, T2, corrida).
 const SEG_W = [0.16, 0.04, 0.46, 0.04, 0.3];
 const SEG_START = SEG_W.map((_, i) => SEG_W.slice(0, i).reduce((a, b) => a + b, 0));
 const SEG_NAME = ['Natação', 'T1', 'Bike', 'T2', 'Corrida'];
-const SEG_COLOR = ['var(--swim)', 'var(--line)', 'var(--bike)', 'var(--line)', 'var(--run)'];
+const SEG_COLOR = ['var(--swim)', 'var(--axis)', 'var(--bike)', 'var(--axis)', 'var(--run)'];
 const REAL_SECONDS = 30; // duração da animação a velocidade normal, sem contar as pausas
 const SPRINT_AT = 0.97;  // fração da corrida em que se decide se há sprint final
 
@@ -112,34 +113,51 @@ export function RaceView({ game, apply, onEnd }: { game: GameState; apply: Apply
     : SEG_NAME[seg];
   const lines = view.timeline.filter(l => l.at <= t);
   const X = (p: number) => 10 + p * 320;
-  const rowY = (i: number) => 44 + ((i * 7) % 9) * 9;
+  const rowY = (i: number) => 52 + ((i * 7) % 9) * 9;
   const rival = view.trace.find(x => x.tag === 'rival');
+  const segIc: IconName = seg === 0 ? 'swim' : seg === 2 ? 'bike' : seg === 4 ? 'run' : seg < 0 ? 'flag' : 'timer';
 
   return (
     <>
-      <h1>{r.n}</h1>
-      <svg viewBox="0 0 340 150" role="img" aria-label={`Prova em curso: ${myIdx + 1}º lugar, ${where}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
-        {SEG_W.map((w, i) => <rect key={i} x={X(SEG_START[i])} y={34} width={w * 320} height={92} fill={SEG_COLOR[i]} fillOpacity={i % 2 ? 0.25 : 0.12} />)}
-        {[0, 2, 4].map(i => <text key={i} x={X(SEG_START[i] + SEG_W[i] / 2)} y={24} textAnchor="middle" fontSize="11" fill="var(--muted)">{SEG_NAME[i]}</text>)}
-        <line x1={X(1)} x2={X(1)} y1={30} y2={130} stroke="var(--ink)" strokeWidth={2} strokeDasharray="3 3" />
+      <div className="title"><h1>{r.n}</h1><span className="chip acc"><span className="live-dot" />ao vivo</span></div>
+      <svg className="track-view" viewBox="0 0 340 168" role="img" aria-label={`Prova em curso: ${myIdx + 1}º lugar, ${where}`}>
+        {SEG_W.map((w, i) => <rect key={i} x={X(SEG_START[i])} y={40} width={w * 320} height={96} fill={SEG_COLOR[i]} fillOpacity={i % 2 ? 0.22 : 0.1} />)}
+        {[52, 74, 96, 118].map(y => <path key={y} d={`M${X(0) + 4} ${y} q6 -4 12 0 t12 0 t12 0 t12 0`} fill="none" stroke="var(--swim)" strokeOpacity=".35" strokeWidth="1.2" />)}
+        <line x1={X(SEG_START[2])} x2={X(SEG_START[3])} y1={88} y2={88} stroke="var(--bike)" strokeOpacity=".45" strokeWidth="1.5" strokeDasharray="7 6" />
+        <line x1={X(SEG_START[4])} x2={X(1)} y1={88} y2={88} stroke="var(--run)" strokeOpacity=".4" strokeWidth="1.5" strokeDasharray="2 5" strokeLinecap="round" />
+        {([[0, 'swim'], [2, 'bike'], [4, 'run']] as const).map(([i, ic]) => (
+          <g key={i} transform={`translate(${X(SEG_START[i] + SEG_W[i] / 2) - 9} 12)`} color={`var(--${ic})`}><Icon name={ic} size={18} /></g>
+        ))}
+        <g transform={`translate(${X(1) - 6} 140)`} color="var(--ink)"><Icon name="flag" size={14} /></g>
+        <line x1={X(1)} x2={X(1)} y1={36} y2={138} stroke="var(--ink)" strokeWidth={2} strokeDasharray="3 3" />
         {view.trace.map((x, i) => {
           if (x.me) return null;
           const fill = x.tag === 'rival' ? 'var(--bad)' : x.tag === 'clube' ? 'var(--accent)' : 'var(--muted)';
-          return <circle key={i} cx={X(progress(x.cum, t))} cy={rowY(i)} r={x.tag ? 3.6 : 2.8} fill={fill} fillOpacity={x.tag ? 1 : 0.45} />;
+          return <circle key={i} cx={X(progress(x.cum, t))} cy={rowY(i)} r={x.tag ? 3.8 : 2.8} fill={fill} fillOpacity={x.tag ? 1 : 0.5} />;
         })}
-        {rival && <text x={X(progress(rival.cum, t))} y={rowY(view.trace.indexOf(rival)) - 6} textAnchor="middle" fontSize="9" fill="var(--bad)">{rival.nm.split(' ')[0]}</text>}
-        <circle cx={X(pMe)} cy={86} r={6} fill="var(--ink)" stroke="var(--card)" strokeWidth={2} />
-        <text x={X(pMe)} y={146} textAnchor="middle" fontSize="11" fontWeight={700} fill="var(--ink)">Tu</text>
+        {rival && <text x={X(progress(rival.cum, t))} y={rowY(view.trace.indexOf(rival)) - 7} textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--bad)">{rival.nm.split(' ')[0]}</text>}
+        <circle className="me-glow" cx={X(pMe)} cy={88} r={11} fill="var(--accent)" fillOpacity=".25" />
+        <circle cx={X(pMe)} cy={88} r={6.5} fill="var(--accent)" stroke="var(--card)" strokeWidth={2.5} />
+        <text x={X(pMe)} y={158} textAnchor="middle" fontSize="11" fontWeight={700} fill="var(--ink)">Tu</text>
       </svg>
+      <div className="splitbar" aria-hidden="true" style={{ height: 6 }}>
+        <i style={{ flexGrow: pMe, background: 'var(--accent)' }} />
+        <i style={{ flexGrow: 1 - pMe, background: 'var(--soft)' }} />
+      </div>
 
-      <div className="between">
-        <div>
-          <div className="big" style={{ fontSize: 40 }}>{myIdx + 1}{game.ath.cat === 'F' ? 'ª' : 'º'}</div>
-          <div className="small muted">de {view.trace.length} · {where}</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div className="mono">{fmt(Math.min(t, end))}</div>
-          <div className="small muted">{leaderGap > 0.5 ? `líder a ${gapText(leaderGap)}` : 'na frente da prova'}</div>
+      <div className="card">
+        <div className="between">
+          <div className="row" style={{ gap: 12, flexWrap: 'nowrap' }}>
+            <span className={`tile lg sp-${seg === 0 ? 'swim' : seg === 2 ? 'bike' : seg === 4 ? 'run' : 'acc'}`}><Icon name={segIc} size={26} /></span>
+            <div className="stack">
+              <div className="pos-big" style={{ fontSize: 46 }}>{myIdx + 1}{game.ath.cat === 'F' ? 'ª' : 'º'}</div>
+              <span className="small muted">de {view.trace.length} · {where}</span>
+            </div>
+          </div>
+          <div className="stack" style={{ alignItems: 'flex-end' }}>
+            <b className="mono" style={{ fontSize: 18 }}>{fmt(Math.min(t, end))}</b>
+            <span className="small muted">{leaderGap > 0.5 ? `líder a ${gapText(leaderGap)}` : 'na frente da prova'}</span>
+          </div>
         </div>
       </div>
 
@@ -149,22 +167,24 @@ export function RaceView({ game, apply, onEnd }: { game: GameState; apply: Apply
 
       {!pause && (
         <>
-          <div className="lb" aria-label="À tua volta">
-            {around.map(z => (
-              <div key={z.x.nm} className={`it${z.x.me ? ' me' : ''}`}>
-                <span className="n">{z.pos}</span>
-                <span>{z.x.me ? 'Tu' : z.x.nm}{z.x.tag === 'rival' ? ' · rival' : z.x.tag === 'clube' ? ' · clube' : ''}</span>
-                {/* diferença para ti, como nas transmissões: quem vai à frente tem tempo negativo */}
-                <span className="t">{z.x.me ? '' : `${z.gap > 0 ? '−' : '+'}${gapText(z.gap)}`}</span>
-              </div>
-            ))}
+          <div className="card" style={{ padding: 8 }}>
+            <div className="lb" aria-label="À tua volta">
+              {around.map(z => (
+                <div key={z.x.nm} className={`it${z.x.me ? ' me' : ''}`}>
+                  <span className="n">{z.pos <= 3 ? <span className={`medal m${z.pos}`}>{z.pos}</span> : z.pos}</span>
+                  <span className="who"><span>{z.x.me ? 'Tu' : z.x.nm}</span>{z.x.tag === 'rival' && <span className="chip bad">rival</span>}{z.x.tag === 'clube' && <span className="chip acc">clube</span>}</span>
+                  {/* diferença para ti, como nas transmissões: quem vai à frente tem tempo negativo */}
+                  <span className="t">{z.x.me ? '' : `${z.gap > 0 ? '−' : '+'}${gapText(z.gap)}`}</span>
+                </div>
+              ))}
+            </div>
           </div>
           <div className="feed" aria-live="polite">
             {lines.slice(-3).map(l => <div key={l.at + l.text} style={{ ['--sp' as string]: `var(--${l.sp === 'gen' ? 'line' : l.sp})` }}>{l.text}</div>)}
           </div>
-          <div className="seg">
-            <button aria-pressed={fast} onClick={() => setFast(f => !f)}>{fast ? 'Velocidade ×4' : 'Acelerar ×4'}</button>
-            <button onClick={finish}>Ver resultado</button>
+          <div className="grid2">
+            <button className="btn" aria-pressed={fast} onClick={() => setFast(f => !f)}><Icon name="fast" size={18} />{fast ? 'Velocidade ×4' : 'Acelerar ×4'}</button>
+            <button className="btn" onClick={finish}><Icon name="skip" size={18} />Ver resultado</button>
           </div>
         </>
       )}

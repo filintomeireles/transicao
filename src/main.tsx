@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './ui/App';
+import { applyTheme, loadTheme } from './ui/fx';
 import './styles.css';
 
 // Funcionamento sem rede na versão web instalável. Não se regista na app nativa (Capacitor)
@@ -10,6 +11,9 @@ const secure = location.protocol === 'https:' || location.hostname === 'localhos
 if (import.meta.env.PROD && !isNative && secure && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+
+const forced = import.meta.env.DEV ? new URLSearchParams(location.search).get('tema') : null;
+applyTheme(forced === 'escuro' ? 'dark' : forced === 'claro' ? 'light' : loadTheme());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { DIST, fmt, myClub, season, weekInSeason, type GameState, type RaceDef, type RaceResult } from '../../engine';
 
 // Cores fixas: o cartão é uma imagem, igual em tema claro e escuro.
-const C = { bg: '#13212B', card: '#1C2E3A', ink: '#FFFFFF', muted: '#9FB1BB', accent: '#5A9DF0', swim: '#4DB4DA', bike: '#E6B04B', run: '#FF6B4E' };
+const C = { bg: '#141B2D', card: '#211F4A', ink: '#FFFFFF', muted: '#A8AFC4', accent: '#A99EF5', swim: '#3987e5', bike: '#c98500', run: '#d55181' };
 const FONT = '"Atkinson Hyperlegible", system-ui, sans-serif';
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 

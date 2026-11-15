@@ -147,7 +147,7 @@ export const EVENTS: Record<string, EventDef> = {
   furo: { t: 'Furo a caminho do trabalho', x: 'Pneu da bike rasgado.', o: [
     ['Pneu novo (35 €)', s => { s.money -= 35; return 'Pneu novo montado.'; }],
     ['Remendar e rezar', s => { if (random() < 0.4) { s.money -= 60; return 'Furou outra vez e levou a câmara e a fita de jante: 60 €.'; } return 'Aguentou. Por agora.'; }]] },
-  jornal: { t: 'O jornal local quer uma entrevista', x: '"A atleta da terra que não pára."', minFame: 15, o: [
+  jornal: { t: 'O jornal local quer uma entrevista', x: 'Querem uma página sobre "o triatlo da terra que não pára".', minFame: 15, o: [
     ['Aceitar', s => { s.fame += 4; s.fatigue += 2; return 'Saíste na página 7. +4 fama.'; }],
     ['Recusar', () => 'Ficaste a treinar. Ninguém soube.']] },
   chuva: { t: 'Previsão: chuva a semana toda', x: 'Norte de Portugal em modo outono.', o: [

@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameState } from '../engine';
+import { demoGame } from './demo';
 
 const KEY = 'transicao-save-v3';
 
 function load(): GameState | null {
+  if (import.meta.env.DEV) {
+    const q = new URLSearchParams(location.search);
+    if (q.has('demo')) return demoGame(q);
+  }
   try {
     const raw = localStorage.getItem(KEY);
     const s = raw ? (JSON.parse(raw) as GameState) : null;

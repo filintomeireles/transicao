@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   BAL, CALENDAR, NEUTRAL_SCORE, PROFILES, addRealActivities, applySprint, applyTransition, buy, coachTips, createAthlete,
-  canEnter, finishLiveRace, finishRace, form, isEntered, processWeek, resolveEvent, runRace, setSeed, sprintOpponent, startRace,
+  canEnter, finishLiveRace, finishRace, overall, form, isEntered, processWeek, resolveEvent, runRace, setSeed, sprintOpponent, startRace,
   takeWeek, toggleEntry, toggleRealRace, weekInSeason, weeksAvailable, whyNot, simRace, bookCamp, CAMPS, rivalAfterRace,
   type GameState, type NewAthlete
 } from '../src/engine';
@@ -341,5 +341,17 @@ describe('rival com história', () => {
     runRace(s);
     expect(s.race!.res!.trace.some(r => r.tag === 'rival')).toBe(false);
     expect(s.race!.res!.rivalNm).toBe('');
+  });
+});
+
+describe('histórico semanal', () => {
+  it('guarda nota, forma e fadiga de cada semana fechada', () => {
+    const s = newGame();
+    for (let i = 0; i < 2; i++) { processWeek(s); if (s.race) { runRace(s); finishRace(s); } }
+    expect(s.hist).toHaveLength(2);
+    expect(s.hist![0]).toMatchObject({ w: 1 });
+    expect(s.hist![1].w).toBe(2);
+    expect(s.hist![1].ovr).toBe(overall(s.a));
+    expect(s.hist![1].fat).toBeGreaterThanOrEqual(0);
   });
 });

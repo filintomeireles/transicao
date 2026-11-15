@@ -16,12 +16,12 @@ const FREE_PACE = new URLSearchParams(location.search).get('ritmo') === 'livre';
 
 export function App() {
   const { game, apply, start, reset } = useGame();
-  const [tab, setTabState] = useState<Tab>('semana');
+  const [tab, setTabState] = useState<Tab>(() => (import.meta.env.DEV && (new URLSearchParams(location.search).get('tab') as Tab)) || 'semana');
   const [flash, setFlash] = useState('');
 
   const setTab = (t: Tab) => { setTabState(t); setFlash(''); window.scrollTo(0, 0); };
 
-  if (!game) return <main className="wrap"><Onboarding onCreate={s => { start(s); setTabState('semana'); }} /></main>;
+  if (!game) return <main className="wrap fade"><Onboarding onCreate={s => { start(s); setTabState('semana'); }} /></main>;
 
   const inRaceSetup = !!game.race && game.race.stage !== 'done'; // antes e durante a prova não há separadores
   const closeWeek = () => {
@@ -49,7 +49,7 @@ export function App() {
   return (
     <>
       <StatusBar game={game} />
-      <main className="wrap">{screen}</main>
+      <main className="wrap fade" key={`${tab}-${game.race?.stage ?? ""}`}>{screen}</main>
       {!inRaceSetup && (
         <Tabs tab={tab} onTab={setTab} unread={game.inbox.filter(m => !m.done).length} />
       )}

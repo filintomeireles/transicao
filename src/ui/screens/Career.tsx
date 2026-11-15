@@ -3,7 +3,11 @@ import {
   CALENDAR, COURSE_NAME, DIST, SPONSORS, canEnter, eur, fmt, isEntered, raceName, season, toggleEntry, weekInSeason, whyNot,
   type GameState, type RaceTier
 } from '../../engine';
+import { SeasonStrip } from '../charts';
+import { Avatar, Stat, Title, Track } from '../components';
 import { FeedbackForm } from '../Feedback';
+import { buzz } from '../fx';
+import { Icon } from '../icons';
 import type { Apply } from '../useGame';
 
 const TIER: Record<RaceTier, string> = { regional: 'regional', nacional: 'nacional', internacional: 'internacional', pro: 'circuito pro', mundial: 'mundial' };
@@ -14,39 +18,56 @@ export function CareerScreen({ game, apply }: { game: GameState; apply: Apply })
   const podiums = game.results.filter(r => r.p <= 3).length, agWins = game.results.filter(r => r.agP === 1).length;
   const upcoming = CALENDAR.filter(r => r.w >= wk && isEntered(game, r.id));
   const cost = upcoming.reduce((sum, r) => sum + r.fee + r.travel, 0);
+  const titles = game.titles ?? [];
   return (
     <>
-      <div className="between"><h1>Carreira</h1><span className="small muted">Fama {Math.round(game.fame)} · {game.pts} pts</span></div>
-      {feedback
-        ? <FeedbackForm game={game} moment="carreira" onClose={() => setFeedback(false)} />
-        : <div><button className="btn sm" onClick={() => setFeedback(true)}>Dar a tua opinião sobre o jogo</button></div>}
+      <div className="title">
+        <h1>Carreira</h1>
+        <span className="row" style={{ gap: 6 }}><span className="chip gold"><Icon name="star" />fama {Math.round(game.fame)}</span><span className="chip acc">{game.pts} pts</span></span>
+      </div>
 
-      <div className="card">
-        <h2>Palmarés</h2>
-        {(game.titles ?? []).map(t => <div key={t} className="small"><b>{t}</b></div>)}
-        <div className="small">{game.results.length} provas · {podiums} pódio{podiums === 1 ? '' : 's'} na geral · {agWins} vitória{agWins === 1 ? '' : 's'} no escalão</div>
-        {!game.titles?.length && <span className="small muted">O grande objetivo: o Mundial de Longa Distância, na semana 20. Para lá chegar precisas de vaga, ganha na Meia distância do Algarve ou na Longa distância de Vitória.</span>}
+      <div className="card hero">
+        <Title icon="trophy">Palmarés</Title>
+        <div className="cond">
+          <Stat label="Provas" value={game.results.length} />
+          <Stat label="Pódios" value={podiums} sub="na geral" />
+          <Stat label="Escalão" value={agWins} sub={agWins === 1 ? 'vitória' : 'vitórias'} />
+        </div>
+        {titles.map(t => (
+          <div key={t} className="row" style={{ flexWrap: 'nowrap' }}>
+            <span className="tile sp-gold"><Icon name="trophy" /></span><b>{t}</b>
+          </div>
+        ))}
+        {!titles.length && <span className="small muted">O grande objetivo: o Mundial de Longa Distância, na semana 20. Para lá chegar precisas de vaga, ganha na Meia distância do Algarve ou na Longa distância de Vitória.</span>}
       </div>
 
       <div className="card">
-        <div className="between"><h2>Temporada {se}</h2><span className="small muted">{upcoming.length} inscrições · {eur(cost)}</span></div>
+        <Title icon="week" right={<span className="small muted">{upcoming.length} inscrições · {eur(cost)}</span>}>Temporada {se}</Title>
+        <SeasonStrip week={wk} races={CALENDAR.map(r => ({ w: r.w, label: r.n, big: r.tier === 'mundial', entered: isEntered(game, r.id) }))} />
         <span className="small muted">Escolhe as provas: uma por semana. Inscrição e viagem pagam-se na semana da prova.</span>
         {CALENDAR.map(r => {
           const res = game.results.find(x => x.id === r.id && x.season === se), L = game.legends[r.id], D = DIST[r.t];
           const entered = isEntered(game, r.id), blocked = whyNot(game, r);
           const past = r.w < wk || !!res || (r.w === wk && !!game.race);
+          const big = r.tier === 'mundial' || r.tier === 'pro';
           return (
-            <div key={r.id} className="item">
-              <div>
-                <b>Sem. {r.w} · {r.n}</b> <span className={`chip${r.tier === 'mundial' || r.tier === 'pro' ? ' acc' : ''}`}>{TIER[r.tier]}</span>
-                <div className="small muted">{D.l} · percurso {COURSE_NAME[r.course]} · ar ~{r.air} °C{r.windy >= 20 ? ' · ventoso' : ''} · água {r.temp} °C · {r.fee ? `inscrição ${eur(r.fee)} + ` : ''}viagem {eur(r.travel)}{r.prizeMult ? ` · prémios ×${r.prizeMult}` : ''}</div>
-                {r.slotTo && <div className="small muted">Dá vaga para {raceName(r.slotTo)}: top {r.slot} do escalão{game.slots[r.slotTo] ? ' · já tens vaga' : ''}</div>}
-                {blocked && !res && !past && <div className="small" style={{ color: 'var(--bad)' }}>{blocked}</div>}
-                {L && <div className="small muted">Lenda local: {L.nm === game.ath.name ? <b>tu</b> : L.nm} ({L.count} participações)</div>}
+            <div key={r.id} className="item ic-row" style={{ opacity: past && !res ? 0.55 : 1 }}>
+              <span className={`tile ${r.tier === 'mundial' ? 'sp-gold' : entered ? 'sp-acc' : 'sp-gen'}`}><Icon name={r.tier === 'mundial' ? 'trophy' : r.course === 'montanhoso' ? 'mountain' : 'flag'} /></span>
+              <div className="stack">
+                <span className="row" style={{ gap: 6 }}><span className="lbl">Sem. {r.w}</span><span className={`chip${big ? ' gold' : ''}`}>{TIER[r.tier]}</span></span>
+                <b>{r.n}</b>
+                <span className="small muted">{D.l} · {COURSE_NAME[r.course]} · ar ~{r.air}°{r.windy >= 20 ? ' · ventoso' : ''} · água {r.temp}° · {eur(r.fee + r.travel)}{r.prizeMult ? ` · prémios ×${r.prizeMult}` : ''}</span>
+                {r.slotTo && <span className="small acc-t">Vaga para {raceName(r.slotTo)}: top {r.slot} do escalão{game.slots[r.slotTo] ? ' · já tens vaga' : ''}</span>}
+                {blocked && !res && !past && <span className="small bad-t"><Icon name="lock" size={13} /> {blocked}</span>}
+                {L && <span className="small muted">Lenda local: {L.nm === game.ath.name ? <b>tu</b> : L.nm} ({L.count} participações)</span>}
               </div>
-              {res ? <span className="small">{res.p}º/{res.N}<br />{res.agP}º {res.ag}</span>
-                : past ? <span className="small muted">—</span>
-                : <button className="btn sm" aria-pressed={entered} onClick={() => apply(s => toggleEntry(s, r.id))}>{entered ? (canEnter(game, r) ? 'Inscrito ✓' : 'Inscrito*') : 'Inscrever'}</button>}
+              {res ? (
+                <span className="stack" style={{ alignItems: 'center' }}>
+                  {res.agP <= 3 ? <span className={`medal m${res.agP}`}>{res.agP}</span> : <b className="stat-v" style={{ fontSize: 18 }}>{res.agP}º</b>}
+                  <span className="small muted">{res.p}º/{res.N}</span>
+                </span>
+              ) : past ? <span className="small muted">—</span>
+                : <button className="btn sm" aria-pressed={entered} onClick={() => { buzz(8); apply(s => toggleEntry(s, r.id)); }}>{entered ? (canEnter(game, r) ? <><Icon name="check" size={15} />Inscrito</> : 'Inscrito*') : 'Inscrever'}</button>}
             </div>
           );
         })}
@@ -54,37 +75,55 @@ export function CareerScreen({ game, apply }: { game: GameState; apply: Apply })
       </div>
 
       <div className="card">
-        <h2>Patrocínios</h2>
+        <Title icon="file">Patrocínios</Title>
         {game.sponsors.length ? game.sponsors.map(s => (
-          <div key={s.id} className="item">
-            <div><b>{s.n}</b><div className="small muted">{eur(s.weekly)}/semana · {eur(s.podium)} por pódio · faltam {s.left} semanas</div></div>
-            <span className="chip good">Ativo</span>
+          <div key={s.id} className="item ic-row">
+            <Avatar name={s.n} size={40} />
+            <div className="stack"><b>{s.n}</b><span className="small muted">{eur(s.weekly)}/semana · {eur(s.podium)} por pódio · faltam {s.left} semanas</span></div>
+            <span className="chip good">ativo</span>
           </div>
         )) : <span className="small muted">Ainda ninguém te paga. As propostas chegam à caixa de entrada quando a fama sobe.</span>}
-        {SPONSORS.filter(s => !game.sponsors.some(x => x.id === s.id)).map(s => (
-          <div key={s.id} className="item">
-            <div><b>{s.n}</b><div className="small muted">{s.d}</div></div>
-            <span className={`chip${game.fame >= s.minFame ? ' warn' : ''}`}>fama {s.minFame}</span>
-          </div>
-        ))}
+        {SPONSORS.filter(s => !game.sponsors.some(x => x.id === s.id)).map(s => {
+          const ok = game.fame >= s.minFame;
+          return (
+            <div key={s.id} className="item ic-row">
+              <span className={`tile ${ok ? 'sp-gold' : 'sp-gen'}`}><Icon name={ok ? 'mail' : 'lock'} /></span>
+              <div className="stack">
+                <b>{s.n}</b><span className="small muted">{s.d}</span>
+                {!ok && <Track thin value={(game.fame / s.minFame) * 100} color="var(--gold)" />}
+              </div>
+              <span className={`chip${ok ? ' gold' : ''}`}>fama {s.minFame}</span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="card">
-        <h2>Resultados</h2>
+        <Title icon="medal">Resultados</Title>
         {game.results.length ? (
           <div className="lb">
             {game.results.slice().reverse().map((r, i) => (
-              <div key={i} className="it"><span className="n">{r.p}º</span><span>{r.n} <span className="small muted">· {r.agP}º {r.ag}</span></span><span className="t">{fmt(r.total)}</span></div>
+              <div key={i} className="it">
+                <span className="n">{r.p <= 3 ? <span className={`medal m${r.p}`}>{r.p}</span> : `${r.p}º`}</span>
+                <span className="who"><span>{r.n}</span><span className="small muted">{r.agP}º {r.ag} · T{r.season}</span></span>
+                <span className="t">{fmt(r.total)}</span>
+              </div>
             ))}
           </div>
         ) : <span className="small muted">Ainda sem provas.</span>}
       </div>
 
       <div className="card">
-        <h2>Mensagens</h2>
-        {game.inbox.filter(m => m.done).slice(0, 8).map((m, i) => <div key={i} className="small"><b>{m.t}</b> — {m.x}</div>)}
+        <Title icon="mail">Mensagens</Title>
+        {game.inbox.filter(m => m.done).slice(0, 8).map((m, i) => (
+          <div key={i} className="item ic-row"><span className="tile sm sp-acc"><Icon name={m.k === 'offer' ? 'file' : 'mail'} size={15} /></span><div className="stack"><b className="small">{m.t}</b><span className="small muted">{m.x}</span></div><span /></div>
+        ))}
         {!game.inbox.some(m => m.done) && <span className="small muted">Sem mensagens.</span>}
       </div>
+
+      {feedback
+        ? <FeedbackForm game={game} moment="carreira" onClose={() => setFeedback(false)} />
+        : <button className="btn" onClick={() => setFeedback(true)}><Icon name="mail" size={18} />Dar a tua opinião sobre o jogo</button>}
     </>
   );
 }

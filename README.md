@@ -13,6 +13,19 @@ npm run simulate   # simulador de equilíbrio: npm run simulate -- 30 60
 npm run build      # versão de produção em dist/
 ```
 
+Só em desenvolvimento (`npm run dev`), há um modo de demonstração para ver os ecrãs com dados:
+`?demo=30` cria uma carreira com 30 semanas jogadas, `&tab=atleta` abre esse separador,
+`&prova=resultado` mostra o resultado da prova da semana e `&tema=escuro` força o tema escuro.
+Não entra na versão publicada.
+
+## Interface
+
+Ícones, gráficos e retratos são desenhados em código (`src/ui/icons.tsx`, `src/ui/charts.tsx`,
+`Avatar` e `Crest` em `src/ui/components.tsx`): a arte final do Higgsfield substitui-os mais tarde
+sem mudar os ecrãs. As cores das modalidades (natação azul, bike âmbar, corrida magenta) estão
+validadas para daltonismo em claro e escuro; mudar `--swim`, `--bike` e `--run` em `src/styles.css`
+pede nova validação.
+
 ## Ritmo do jogo
 
 Cada dia real dá 2 semanas de jogo, que se acumulam até 7 (`BAL.pacePerDay`, `BAL.paceCap` em

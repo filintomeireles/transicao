@@ -1,4 +1,5 @@
 import { nextRace, season, weekInSeason, type GameState } from '../engine';
+import { Icon } from './icons';
 import type { Apply } from './useGame';
 
 type Where = 'week' | 'race';
@@ -25,12 +26,17 @@ export function GuideCard({ game, where, apply }: { game: GameState; where: Wher
   const step = STEPS.find(st => !done.includes(st.id) && st.when(game, where));
   if (!step) return null;
   const left = STEPS.filter(st => !done.includes(st.id)).length;
+  const at = STEPS.indexOf(step);
   return (
     <div className="card guide" role="note" aria-label="Guia">
-      <div className="between"><b>{step.title}</b><span className="small muted">Guia</span></div>
+      <div className="between">
+        <h2><Icon name="info" size={18} />{step.title}</h2>
+        <span className="small muted">{at + 1} de {STEPS.length}</span>
+      </div>
+      <div className="guide-steps" aria-hidden="true">{STEPS.map((st, i) => <i key={st.id} className={i <= at ? 'on' : ''} />)}</div>
       <span className="small">{step.text}</span>
       <div className="row">
-        <button className="btn sm" onClick={() => apply(s => { s.guide = [...(s.guide ?? []), step.id]; })}>Percebi</button>
+        <button className="btn sm dark" onClick={() => apply(s => { s.guide = [...(s.guide ?? []), step.id]; })}>Percebi</button>
         {left > 1 && <button className="btn sm ghost" onClick={() => apply(s => { s.guide = STEPS.map(x => x.id); })}>Saltar o guia</button>}
       </div>
     </div>

@@ -250,6 +250,8 @@ export interface GameState {
     /** Semanas de fora por lesão. */
     out?: number;
   };
+  /** Histórico semanal para os gráficos do atleta (últimas 60 semanas). */
+  hist?: { w: number; ovr: number; form: number; fat: number }[];
   /** Rivais antigos. */
   rivals?: { nm: string; beaten: number; lost: number; until: number }[];
   /** Estágio em curso. */

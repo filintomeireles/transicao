@@ -6,7 +6,8 @@ import { pick, random, rnd } from './rng';
 import { rollWeather } from './weather';
 import { rivalPreRace, rivalWeek } from './rival';
 import type { Activity, Attrs, GameState, Session, SessionKey, Sport } from './types';
-import { canAfford, canEnter, myClub, raceThisWeek, season, weekInSeason, whyNot } from './world';
+import { overall } from './athlete';
+import { canAfford, canEnter, form, myClub, raceThisWeek, season, weekInSeason, whyNot } from './world';
 
 export function gainMult(s: GameState, sp: Sport): number {
   let m = 1;
@@ -273,6 +274,7 @@ export function endWeek(s: GameState): void {
     C.season = 0;
     for (const o of C.others) { o.season = 0; o.base *= rnd(1, 1.06); }
   }
+  s.hist = [...(s.hist ?? []), { w: s.week, ovr: overall(s.a), form: Math.round(form(s) * 10) / 10, fat: Math.round(s.fatigue) }].slice(-60);
   s.week++;
   s.rain = false;
   if (weekInSeason(s) === 1) {
