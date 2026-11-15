@@ -51,7 +51,8 @@ export function createAthlete(o: NewAthlete, imp: ImportSummary | null): GameSta
   const members: ClubMember[] = [];
   for (let i = 0; i < 12; i++) {
     const cat: Cat = i % 2 ? 'M' : 'F';
-    members.push({ nm: nameFor(cat), cat, age: 22 + Math.floor(random() * 35), r: clamp(52 + gauss() * 9, 30, 80), pts: 0, active: false });
+    // o clube já existia: os membros habituais chegam com eventos no historial
+    members.push({ nm: nameFor(cat), cat, age: 22 + Math.floor(random() * 35), r: clamp(52 + gauss() * 9, 30, 80), pts: 0, active: false, events: i < 2 ? 8 + Math.floor(random() * 12) : Math.floor(random() * 5) });
   }
   const legends: GameState['legends'] = {};
   for (const r of CALENDAR) legends[r.id] = { nm: nameFor(o.cat), count: 3 + Math.floor(random() * 3) };

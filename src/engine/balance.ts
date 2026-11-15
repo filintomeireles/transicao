@@ -22,6 +22,13 @@ export const BAL = {
   salary: 300,
   fameKeep: 0.97,
   coach: 1.15,
+  // treino real
+  realBonus: 1.2,      // ganhos de um treino real
+  realBonusCap: 4,     // treinos reais por semana com bónus
+  realStreakMin: 3,    // treinos reais numa semana para contar para a série
+  fatDecayRealRest: 0.65, // descanso real numa semana com treino real
+  // clube: patrocinador paga por evento a que vais, conforme a divisão
+  clubPay: [0, 40, 20, 10] as readonly number[],
   // categoria feminina: os perfis prontos são ritmos masculinos
   fOffset: 7
 } as const;

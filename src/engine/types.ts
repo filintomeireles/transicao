@@ -35,6 +35,8 @@ export interface RealSession {
   km: number;
   sport: Activity['sport'];
   hr: number | null;
+  /** Marcada pelo jogador como prova real. */
+  race?: boolean;
 }
 
 export interface InboxMsg {
@@ -75,7 +77,7 @@ export interface ClubDef {
   members: number;
   ev: { d: number; t: string; where: string; sp: 'run' | 'bike' };
 }
-export interface ClubMember { nm: string; cat: Cat; age: number; r: number; pts: number; active: boolean }
+export interface ClubMember { nm: string; cat: Cat; age: number; r: number; pts: number; active: boolean; events?: number }
 export interface ClubState {
   id: string;
   members: ClubMember[];
@@ -190,7 +192,7 @@ export interface ResultRecord {
   total: number;
 }
 
-export interface WeekSummary { week: number; load: number; gains: Partial<Attrs>; rep: string[]; fin: number }
+export interface WeekSummary { week: number; load: number; gains: Partial<Attrs>; rep: string[]; fin: number; bonuses?: string[] }
 
 export interface Challenge { me: number; fr: { nm: string; h: number }[]; won: boolean }
 
@@ -235,4 +237,14 @@ export interface GameState {
   guide?: string[];
   /** Pedidos de opinião já mostrados (por momento do jogo). */
   asked?: string[];
+  /** Semanas seguidas com pelo menos 3 treinos reais. */
+  realStreak?: number;
+  /** Melhor série de semanas com treino real. */
+  realBest?: number;
+  /** Treinos reais importados desde o início. */
+  realTotal?: number;
+  /** Eventos do clube em que participaste. */
+  clubEvents?: number;
+  /** Kits do clube ganhos (subidas de divisão). */
+  clubKit?: number;
 }

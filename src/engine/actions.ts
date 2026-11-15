@@ -55,6 +55,13 @@ export const returnToJob = (s: GameState): void => { s.job = true; };
 export const setDay = (s: GameState, day: number, k: SessionKey): void => { s.plan[day] = k; };
 export const applyPreset = (s: GameState, name: keyof typeof PRESETS): void => { s.plan = PRESETS[name].slice(); };
 export const removeReal = (s: GameState, day: number): void => { s.real[day] = []; };
+/** Marca (ou desmarca) o treino real mais longo desse dia como prova real. */
+export function toggleRealRace(s: GameState, day: number): void {
+  const list = s.real[day];
+  if (!list?.length) return;
+  const longest = list.reduce((a, b) => (b.min > a.min ? b : a));
+  longest.race = !longest.race;
+}
 
 export function setRaceChoice<K extends keyof RaceChoices>(s: GameState, key: K, value: RaceChoices[K]): void {
   if (s.race?.stage === 'setup') s.race.ch[key] = value;

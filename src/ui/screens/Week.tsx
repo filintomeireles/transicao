@@ -1,7 +1,7 @@
 import {
-  ATTR, DAY_NAMES, DAYS, DIST, EVENTS, PRESETS, SESS, SESSION_KEYS, SPORT_NAME,
+  ATTR, BAL, DAY_NAMES, DAYS, DIST, EVENTS, PRESETS, SESS, SESSION_KEYS, SPORT_NAME,
   acceptOffer, addRealActivities, ageGroup, applyPreset, bonusFor, canEnter, coachTips, dec, declineOffer, eur, myClub,
-  nextRace, projected, raceThisWeek, readFiles, removeReal, resolveEvent, setDay, weekInSeason, whyNot,
+  nextRace, projected, raceThisWeek, readFiles, removeReal, resolveEvent, setDay, toggleRealRace, weekInSeason, whyNot,
   type AttrKey, type GameState, type SessionKey
 } from '../../engine';
 import { Flash } from '../components';
@@ -76,9 +76,10 @@ export function WeekScreen({ game, apply, flash, setFlash, onClose }: { game: Ga
             return (
               <div key={i} className={`day sp-${SESS[real[0].k].sp}`}>
                 <span className="d">{DAYS[i]}</span>
-                <span>{real.map((r, j) => <div key={j}>{SESS[r.k].n} <span className="small muted mono">{r.min}′{r.km ? ` · ${dec(r.km)} km` : ''}</span></div>)}</span>
-                <span className="r"><span className="chip acc">real +10%</span><br />
-                  <button className="btn sm" style={{ marginTop: 4, padding: '3px 8px' }} aria-label={`Remover treino real de ${DAY_NAMES[i]}`} onClick={() => apply(s => removeReal(s, i))}>remover</button>
+                <span>{real.map((r, j) => <div key={j}>{r.race ? 'Prova real' : SESS[r.k].n} <span className="small muted mono">{r.min}′{r.km ? ` · ${dec(r.km)} km` : ''}</span></div>)}</span>
+                <span className="r"><span className="chip acc">real +{Math.round((BAL.realBonus - 1) * 100)}%</span><br />
+                  <button className="btn sm" style={{ marginTop: 4, padding: '3px 8px' }} aria-pressed={real.some(r => r.race)} onClick={() => apply(s => toggleRealRace(s, i))}>{real.some(r => r.race) ? 'é prova ✓' : 'foi prova?'}</button>
+                  <button className="btn sm ghost" style={{ marginTop: 4, padding: '3px 8px' }} aria-label={`Remover treino real de ${DAY_NAMES[i]}`} onClick={() => apply(s => removeReal(s, i))}>remover</button>
                 </span>
               </div>
             );
@@ -135,6 +136,7 @@ export function WeekScreen({ game, apply, flash, setFlash, onClose }: { game: Ga
               <span key={k} className={`chip ${g > 0 ? 'good' : 'bad'}`}>{SPORT_NAME[ATTR[k][1]]} {ATTR[k][0].toLowerCase()} {g > 0 ? '+' : ''}{dec(g)}</span>
             ))}
           </div>
+          {L.bonuses?.length ? <div className="row">{L.bonuses.map(b => <span key={b} className="chip acc">{b}</span>)}</div> : null}
           {L.rep.map((r, i) => <div key={i} className="small">{r}</div>)}
         </div>
       )}

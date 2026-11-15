@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { dec, myClub, type GameState } from '../../engine';
+import { BAL, dec, myClub, type GameState } from '../../engine';
 import { Flash, Seg } from '../components';
+
+// Marca fictícia; mais tarde, clubes verificados podem ter o seu patrocinador real.
+const CLUB_SPONSOR = 'Cooperativa do Rio';
 
 export function ClubScreen({ game, flash, setFlash }: { game: GameState; flash: string; setFlash: (t: string) => void }) {
   const [view, setView] = useState<'semana' | 'divisao'>('semana');
@@ -8,6 +11,9 @@ export function ClubScreen({ game, flash, setFlash }: { game: GameState; flash: 
   const table = [{ n: c.n, v: view === 'divisao' ? C.season : C.score, me: true }, ...C.others.map(o => ({ n: o.n, v: view === 'divisao' ? o.season : o.score, me: false }))].sort((a, b) => b.v - a.v);
   const people = [...C.members.map(m => ({ nm: m.nm, pts: m.pts, me: false })), { nm: 'Tu', pts: C.myPts ?? 0, me: true }].sort((a, b) => b.pts - a.pts);
   const friends = C.members.slice(0, 3);
+  const pay = BAL.clubPay[C.div] ?? 0;
+  const myEvents = game.clubEvents ?? 0;
+  const topMember = C.members.map(m => ({ nm: m.nm, events: m.events ?? 0 })).sort((a, b) => b.events - a.events)[0];
 
   async function copyCode() {
     try {
@@ -47,7 +53,25 @@ export function ClubScreen({ game, flash, setFlash }: { game: GameState; flash: 
         </>
       )}
 
-      <div className="card acc"><b>{c.ev.t}</b><span className="small">{c.ev.where} · {c.ev.sp === 'bike' ? 'um treino de bike' : 'uma corrida'} nesse dia dá +15% e conta para o clube.</span></div>
+      <div className="card acc"><b>{c.ev.t}</b><span className="small">{c.ev.where} · {c.ev.sp === 'bike' ? 'um treino de bike' : 'uma corrida'} nesse dia dá +15% nos ganhos, pontos para o clube{pay ? ` e ${pay} € do patrocinador do clube` : ''}.</span></div>
+
+      <div className="card">
+        <b>Patrocinador do clube: {CLUB_SPONSOR}</b>
+        <span className="small">Paga a quem vai aos eventos: {BAL.clubPay[3]} € na divisão 3, {BAL.clubPay[2]} € na 2 e {BAL.clubPay[1]} € na 1. Agora estão na divisão {C.div}.</span>
+        <span className="small muted">Subir de divisão dá a todos os membros +5 fama e o kit de campeão.{(game.clubKit ?? 0) > 0 ? ` Já tens ${game.clubKit} kit${game.clubKit === 1 ? '' : 's'}.` : ''}</span>
+      </div>
+
+      <div className="card">
+        <b>Lenda do clube</b>
+        {myEvents > topMember.events
+          ? <span className="small">És tu: foste a {myEvents} eventos, mais do que qualquer outro membro.</span>
+          : <span className="small">{topMember.nm}, com {topMember.events} eventos. Tu tens {myEvents}{topMember.events - myEvents > 0 ? `: faltam ${topMember.events - myEvents + 1} para o título` : ''}.</span>}
+      </div>
+
+      <div className="card">
+        <b>Estafeta do clube</b>
+        <span className="small">Na semana 14 de cada temporada: equipa de três do clube contra outros clubes da divisão. Escolhes a tua parte (natação, bike ou corrida) e ganhas fama e pontos para o clube.</span>
+      </div>
 
       <h2 style={{ marginTop: 6 }}>Treinar juntos</h2>
       <div className="card">

@@ -112,6 +112,8 @@ export interface EventDef {
   x: string;
   minFame?: number;
   job?: boolean;
+  /** Acontece numa semana marcada, nunca ao acaso. */
+  scheduled?: boolean;
   o: [string, (s: GameState) => string][];
 }
 
@@ -135,9 +137,28 @@ export const EVENTS: Record<string, EventDef> = {
   extra: { t: 'Pedem-te horas extra no trabalho', x: 'O chefe precisa de ajuda esta semana.', job: true, o: [
     ['Aceitar (+120 €)', s => { s.money += 120; s.fatigue += 8; return 'Mais 120 € e menos horas de sono.'; }],
     ['Recusar', s => { s.moral -= 2; return 'O chefe torceu o nariz.'; }]] },
+  estafeta: { t: 'Estafeta do clube no sábado', x: 'Equipas de três clubes da tua divisão: um nada, outro pedala, outro corre. Que parte fazes tu?', scheduled: true, o: [
+    ['Nado eu', s => relay(s, 'swim')],
+    ['Pedalo eu', s => relay(s, 'bike')],
+    ['Corro eu', s => relay(s, 'run')]] },
   sono: { t: 'Noite mal dormida', x: 'O vizinho resolveu fazer obras às 7h.', o: [
     ['Sesta à tarde', s => { s.fatigue -= 4; return 'Sesta de 40 minutos. Salvo.'; }],
     ['Café duplo', s => { s.money -= 2; s.fatigue += 3; return 'Funcionou. Mais ou menos.'; }]] }
 };
 
-export const INJURIES = ['canelite', 'dor no tendão de Aquiles', 'fascite plantar', 'contratura na barriga da perna'];
+/** Estafeta do clube: a tua parte vale o teu atributo nessa disciplina; os outros dois são membros do clube. */
+function relay(s: GameState, leg: 'swim' | 'bike' | 'run'): string {
+  const mine = leg === 'swim' ? (s.a.swimTec + s.a.swimEnd) / 2 : leg === 'bike' ? (s.a.bikePow + s.a.bikeEnd) / 2 : (s.a.runSpd + s.a.runEnd) / 2;
+  const mates = [...s.club.members].sort((a, b) => b.r - a.r).slice(0, 2);
+  const team = (mine + mates[0].r + mates[1].r) / 3 + (random() - 0.5) * 8;
+  const others = Array.from({ length: 5 }, () => 55 + (s.club.div === 1 ? 6 : s.club.div === 3 ? -6 : 0) + (random() - 0.5) * 16);
+  const pos = others.filter(o => o > team).length + 1;
+  const fame = pos === 1 ? 6 : pos <= 3 ? 3 : 1;
+  s.fame += fame;
+  s.moral += pos <= 3 ? 6 : 1;
+  s.club.season += pos === 1 ? 60 : pos <= 3 ? 30 : 10;
+  const legName = leg === 'swim' ? 'a natação' : leg === 'bike' ? 'a bike' : 'a corrida';
+  return `Fizeste ${legName} com ${mates[0].nm} e ${mates[1].nm}. Equipa em ${pos}º de 6: +${fame} fama e pontos para o clube.`;
+}
+
+export const INJURIES =['canelite', 'dor no tendão de Aquiles', 'fascite plantar', 'contratura na barriga da perna'];

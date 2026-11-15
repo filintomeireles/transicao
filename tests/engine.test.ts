@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   BAL, CALENDAR, NEUTRAL_SCORE, PROFILES, addRealActivities, applySprint, applyTransition, buy, coachTips, createAthlete,
-  finishLiveRace, finishRace, form, processWeek, runRace, setSeed, sprintOpponent, startRace, weekInSeason,
+  finishLiveRace, finishRace, form, processWeek, resolveEvent, runRace, setSeed, sprintOpponent, startRace, toggleRealRace, weekInSeason,
   type GameState, type NewAthlete
 } from '../src/engine';
 
@@ -31,8 +31,10 @@ describe('semana', () => {
     const money = s.money;
     processWeek(s);
     expect(s.week).toBe(2);
-    expect(s.last?.fin).toBe(BAL.salary - BAL.living);
-    expect(s.money).toBeLessThanOrEqual(money + BAL.salary - BAL.living);
+    // a semana típica tem corrida à terça, o dia do clube: o patrocinador do clube paga
+    const clubPay = BAL.clubPay[s.club.div];
+    expect(s.last?.fin).toBe(BAL.salary - BAL.living + clubPay);
+    expect(s.money).toBeLessThanOrEqual(money + BAL.salary - BAL.living + clubPay);
   });
 
   it('o taper aumenta a forma', () => {
@@ -52,6 +54,54 @@ describe('semana', () => {
     expect(s.real[1]).toHaveLength(1);
     expect(s.real[1][0].k).toBe('runZ2');
     expect(addRealActivities(s, [{ sport: 'run', start: tuesday, sec: 3600, km: 10, hr: 140 }])).toContain('Nenhum');
+  });
+});
+
+describe('recompensas do treino real e do clube', () => {
+  const run = (day: number, min = 60) => ({ sport: 'run' as const, start: Date.parse('2026-11-09T07:00:00') + day * 864e5, sec: min * 60, km: min / 6, hr: 140 });
+
+  it('três semanas seguidas com 3 treinos reais fazem uma série e dão fama', () => {
+    const s = newGame();
+    for (let w = 0; w < 3; w++) {
+      addRealActivities(s, [run(0 + w * 7), run(2 + w * 7), run(4 + w * 7)]);
+      s.race = null;
+      const fame = s.fame;
+      processWeek(s);
+      s.race = null;
+      expect(s.realStreak).toBe(w + 1);
+      if (w > 0) expect(s.fame).toBeGreaterThan(fame * BAL.fameKeep);
+    }
+    expect(s.last?.bonuses?.some(b => b.startsWith('Série real: 3 semanas'))).toBe(true);
+    processWeek(s);
+    expect(s.realStreak).toBe(0);
+  });
+
+  it('só os primeiros treinos reais da semana têm bónus', () => {
+    const s = newGame();
+    addRealActivities(s, [0, 1, 2, 3, 4, 5].map(d => run(d)));
+    processWeek(s);
+    expect(s.last?.bonuses).toContain(`${BAL.realBonusCap} treinos reais com +${Math.round((BAL.realBonus - 1) * 100)}%`);
+  });
+
+  it('uma prova real marcada dá fama e uma conquista', () => {
+    const s = newGame();
+    addRealActivities(s, [run(5, 100)]);
+    toggleRealRace(s, 5);
+    const fame = s.fame;
+    processWeek(s);
+    expect(s.fame).toBeGreaterThan(fame);
+    expect(s.inbox.some(m => m.t.startsWith('Prova real'))).toBe(true);
+  });
+
+  it('a estafeta do clube aparece na semana 14 e dá fama', () => {
+    const s = newGame();
+    while (weekInSeason(s) < 14) { processWeek(s); if (s.race) { runRace(s); finishRace(s); } }
+    const i = s.inbox.findIndex(m => m.id === 'estafeta');
+    expect(i).toBeGreaterThanOrEqual(0);
+    const fame = s.fame;
+    resolveEvent(s, i, 2);
+    expect(s.fame).toBeGreaterThan(fame);
+    expect(s.inbox[i].res).toContain('Fizeste a corrida');
   });
 });
 

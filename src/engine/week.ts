@@ -74,6 +74,9 @@ export function processWeek(s: GameState): void {
   const rep: string[] = [], gains: Partial<Attrs> = {};
   const spLoad = { swim: 0, bike: 0, run: 0 };
   let load = 0, newInjury = false, z2 = 0, clubPart = false;
+  const weekReal = s.real.flat().length;
+  let realUsed = 0, realRestDays = 0, groupRun = false;
+  const clubDays: string[] = [];
 
   for (let i = 0; i < 7; i++) {
     if (i === 6 && enter) continue;
@@ -97,10 +100,12 @@ export function processWeek(s: GameState): void {
       if (k === 'brick') { spLoad.bike += L / 2; spLoad.run += L / 2; }
       else if (sess.sp !== 'gen') spLoad[sess.sp] += L;
 
-      let m = gainMult(s, sess.sp) * (L / BAL.gainLoad) * (it.real ? 1.1 : 1);
+      // Treino real: bónus até um teto semanal, para não premiar volume sem fim.
+      const realBoost = it.real && realUsed++ < BAL.realBonusCap ? BAL.realBonus : 1;
+      let m = gainMult(s, sess.sp) * (L / BAL.gainLoad) * realBoost;
       const b = bonusFor(s, i, k);
-      if (b.includes('club')) { m *= 1.15; clubPart = true; }
-      if (b.includes('group')) m *= 1.15;
+      if (b.includes('club')) { m *= 1.15; clubPart = true; if (!clubDays.includes(DAYS[i])) clubDays.push(DAYS[i]); }
+      if (b.includes('group')) { m *= 1.15; groupRun = true; }
       for (const [at, g0] of Object.entries(sess.g) as [keyof Attrs, number][]) {
         const g = g0 * Math.pow(1 - s.a[at] / 100, 1.2) * m;
         s.a[at] = Math.min(99, s.a[at] + g);
@@ -108,7 +113,7 @@ export function processWeek(s: GameState): void {
       }
       if (sess.sp === 'run') s.shoeKm += Math.round(it.real ? it.km : sess.km ?? 0);
       if (k === 'runZ2' || k === 'bikeZ2') z2 += it.min;
-      if (!it.real && !newInjury && s.injury === 0 && random() < injuryRisk(s, sess)) {
+      if (!newInjury && s.injury === 0 && random() < injuryRisk(s, sess)) {
         s.injury = 1 + Math.floor(random() * 3);
         s.injuryName = pick(INJURIES);
         newInjury = true;
@@ -116,7 +121,40 @@ export function processWeek(s: GameState): void {
         rep.push(`${DAYS[i]}: lesão — ${s.injuryName}, ${s.injury} semana(s) sem correr.`);
       }
     }
-    s.fatigue = clamp(s.fatigue * (rested ? BAL.fatDecayRest : BAL.fatDecay), 0, 100);
+    // Descanso real: um dia sem atividade numa semana com treino real recupera mais.
+    const realRest = rested && weekReal >= BAL.realStreakMin && !s.real[i]?.length;
+    if (realRest) realRestDays++;
+    s.fatigue = clamp(s.fatigue * (realRest ? BAL.fatDecayRealRest : rested ? BAL.fatDecayRest : BAL.fatDecay), 0, 100);
+  }
+
+  // Série de semanas com treino real: recompensa a consistência, não o volume.
+  const bonuses: string[] = [];
+  s.realTotal = (s.realTotal ?? 0) + weekReal;
+  if (weekReal >= BAL.realStreakMin) {
+    s.realStreak = (s.realStreak ?? 0) + 1;
+    s.realBest = Math.max(s.realBest ?? 0, s.realStreak);
+    const fameGain = Math.min(3, s.realStreak - 1);
+    s.fame += fameGain;
+    bonuses.push(`Série real: ${s.realStreak} semana${s.realStreak > 1 ? 's' : ''}${fameGain ? ` (+${fameGain} fama)` : ''}`);
+    if ([4, 8, 12, 20].includes(s.realStreak)) {
+      s.inbox.unshift({ k: 'msg', t: `Emblema: ${s.realStreak} semanas de treino real seguidas`, x: 'Treinaste a sério e o jogo viu. O emblema fica no teu perfil.', done: true });
+    }
+  } else if ((s.realStreak ?? 0) > 0 && weekReal < BAL.realStreakMin) {
+    if (s.realStreak! >= 2) rep.push(`A tua série de ${s.realStreak} semanas de treino real terminou.`);
+    s.realStreak = 0;
+  }
+  if (weekReal) {
+    const n = Math.min(weekReal, BAL.realBonusCap);
+    bonuses.push(`${n} ${n > 1 ? 'treinos reais' : 'treino real'} com +${Math.round((BAL.realBonus - 1) * 100)}%`);
+  }
+  if (realRestDays) bonuses.push(`Descanso real: recuperação extra em ${realRestDays} dia${realRestDays > 1 ? 's' : ''}`);
+  if (clubDays.length) bonuses.push(`Treino do clube (${clubDays.join(', ')}): +15%`);
+  if (groupRun) bonuses.push('Long run de domingo com o grupo: +15%');
+  // Provas reais marcadas pelo jogador
+  for (const r of s.real.flat().filter(x => x.race)) {
+    const f = Math.round(3 + r.km / 5);
+    s.fame += f;
+    s.inbox.unshift({ k: 'msg', t: `Prova real: ${r.km.toLocaleString('pt-PT')} km`, x: `Acabaste uma prova a sério em ${Math.floor(r.min / 60) ? `${Math.floor(r.min / 60)} h ` : ''}${r.min % 60} min. Conquista guardada e +${f} fama.`, done: true });
   }
 
   // Perda de forma: cada atributo precisa de carga semanal na sua disciplina para se manter.
@@ -145,6 +183,13 @@ export function processWeek(s: GameState): void {
   }
   s.sponsors = s.sponsors.filter(sp => sp.left > 0);
   if (s.subs.coach) fin -= SHOP.find(i => i.id === 'coach')?.p ?? 0;
+  // Patrocinador do clube: paga a quem vai aos eventos, mais nas divisões de cima.
+  if (clubPart) {
+    const pay = BAL.clubPay[s.club.div] ?? 0;
+    fin += pay;
+    s.clubEvents = (s.clubEvents ?? 0) + 1;
+    if (pay) bonuses.push(`Patrocinador do clube: +${pay} € pelo evento`);
+  }
   s.money += fin;
   s.fame *= BAL.fameKeep;
   if (s.owned.crocs) s.moral += 2;
@@ -156,7 +201,12 @@ export function processWeek(s: GameState): void {
   // Clube: pontos da semana e pontuação (média do top 10 de quem pontuou, ajustada pela participação)
   const C = s.club;
   const myPts = Math.round(load / 4) + (enter ? 30 : 0) + (clubPart ? 15 : 0);
-  for (const m of C.members) { m.active = random() < 0.65; m.pts = m.active ? Math.round((rnd(40, 110) * m.r) / 55) : 0; }
+  C.members.forEach((m, i) => {
+    m.active = random() < 0.65;
+    m.pts = m.active ? Math.round((rnd(40, 110) * m.r) / 55) : 0;
+    // os dois primeiros membros são os habituais dos eventos do clube
+    if (random() < (i < 2 ? 0.85 : 0.3)) m.events = (m.events ?? 0) + 1;
+  });
   C.myPts = myPts;
   const scored = [...C.members.map(m => m.pts), myPts].filter(x => x > 0).sort((a, b) => b - a);
   const top = scored.length ? scored.slice(0, 10) : [0];
@@ -177,7 +227,7 @@ export function processWeek(s: GameState): void {
     s.inbox.unshift({ k: 'msg', t: 'As sapatilhas passaram os 700 km', x: 'O risco de lesão a correr aumentou. Há sapatilhas novas na loja.', done: true });
   }
   if (race && !enter) rep.push(`Não entraste em ${race.n}: ${whyNot(s, race) || `sem dinheiro para inscrição e viagem (${eur(race.fee + race.travel)})`}.`);
-  s.last = { week: weekInSeason(s), load: Math.round(load), gains, rep, fin };
+  s.last = { week: weekInSeason(s), load: Math.round(load), gains, rep, fin, bonuses };
   s.real = [[], [], [], [], [], [], []];
 
   if (race && enter) {
@@ -196,7 +246,12 @@ export function endWeek(s: GameState): void {
     const table = [{ n: name, season: C.season, me: true }, ...C.others.map(o => ({ n: o.n, season: o.season, me: false }))].sort((a, b) => b.season - a.season);
     const pos = table.findIndex(t => t.me) + 1;
     let note = 'Ficam na mesma divisão.';
-    if (pos === 1 && C.div > 1) { C.div--; note = `Sobem à divisão ${C.div}!`; }
+    if (pos === 1 && C.div > 1) {
+      C.div--;
+      s.fame += 5;
+      s.clubKit = (s.clubKit ?? 0) + 1;
+      note = `Sobem à divisão ${C.div}! Todos os membros ganham +5 fama e o kit de campeão de divisão, e o patrocinador do clube passa a pagar ${BAL.clubPay[C.div]} € por evento.`;
+    }
     else if (pos === table.length && C.div < 3) { C.div++; note = `Descem à divisão ${C.div}.`; }
     s.inbox.unshift({ k: 'msg', t: `O teu clube acabou a temporada em ${pos}º`, x: `${name} fez ${C.season} pontos. ${note}`, done: true });
     C.season = 0;
@@ -225,8 +280,10 @@ export function endWeek(s: GameState): void {
       break;
     }
   }
-  if (random() < 0.55) {
-    const pool = Object.entries(EVENTS).filter(([, e]) => (!e.minFame || s.fame >= e.minFame) && (!e.job || s.job));
+  // Estafeta do clube: uma por temporada, na semana 14.
+  if (weekInSeason(s) === 14) s.inbox.unshift({ k: 'ev', id: 'estafeta', t: EVENTS.estafeta.t, x: EVENTS.estafeta.x });
+  else if (random() < 0.55) {
+    const pool = Object.entries(EVENTS).filter(([, e]) => !e.scheduled && (!e.minFame || s.fame >= e.minFame) && (!e.job || s.job));
     const [id, e] = pick(pool);
     s.inbox.unshift({ k: 'ev', id, t: e.t, x: e.x });
   }
@@ -249,7 +306,10 @@ export function addRealActivities(s: GameState, acts: Activity[], errs: string[]
     s.real[d].push({ k, key, ratio: loadRatio(a, k), min: Math.round(a.sec / 60), km: Math.round(a.km * 10) / 10, sport: a.sport, hr: a.hr ? Math.round(a.hr) : null });
     added++;
   }
-  let msg = added ? `${added} treino(s) real(is) importado(s). Contam com +10% nos ganhos.` : 'Nenhum treino novo importado.';
+  const pct = Math.round((BAL.realBonus - 1) * 100);
+  let msg = added
+    ? `${added} ${added > 1 ? 'treinos reais importados' : 'treino real importado'}. ${added > 1 ? 'Contam' : 'Conta'} com +${pct}% nos ganhos (até ${BAL.realBonusCap} por semana).`
+    : 'Nenhum treino novo importado.';
   if (errs.length) msg += ' ' + errs.join('; ');
   return msg;
 }

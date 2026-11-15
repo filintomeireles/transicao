@@ -12,6 +12,10 @@ export function AthleteScreen({ game, apply, onReset }: { game: GameState; apply
   const A = game.ath;
   const gear = game.gear.concat(SHOP.filter(i => game.owned[i.id] && !(i.id === 'carbon' && A.start === 'filinto')).map(i => [i.n, i.d] as [string, string]));
   const sponsorsWeekly = game.sponsors.reduce((a, s) => a + s.weekly, 0);
+  const streak = game.realStreak ?? 0;
+  const verified = (game.realTotal ?? 0) >= 5;
+  const best = game.realBest ?? 0;
+  const badges = [4, 8, 12, 20].filter(n => best >= n);
 
   return (
     <>
@@ -41,6 +45,16 @@ export function AthleteScreen({ game, apply, onReset }: { game: GameState; apply
         <h2>Rival: {game.rival.nm}</h2>
         <div className="small">{game.rival.age} anos · escalão {ageGroup(game.rival.age)} · nota {Math.round(game.rival.r)}</div>
         <div className="small muted">Duelos: {game.rival.beaten} vitórias, {game.rival.lost} derrotas.</div>
+      </div>
+
+      <div className="card">
+        <div className="between"><h2>Treino real</h2>{verified && <span className="chip good">atleta verificado</span>}</div>
+        {(game.realTotal ?? 0) > 0 ? (
+          <>
+            <div className="small">{game.realTotal} treinos reais importados · série atual: {streak} semana{streak === 1 ? '' : 's'} com {BAL.realStreakMin} ou mais</div>
+            {badges.length > 0 && <div className="row">{badges.map(b => <span key={b} className="chip acc">{b} semanas seguidas</span>)}</div>}
+          </>
+        ) : <div className="small muted">Importa treinos reais na semana: valem +{Math.round((BAL.realBonus - 1) * 100)}% e, com {BAL.realStreakMin} por semana, contam para a série e para o selo de atleta verificado.</div>}
       </div>
 
       <div className="card">
