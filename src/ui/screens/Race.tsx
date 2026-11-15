@@ -1,9 +1,22 @@
 import { useCallback, useState } from 'react';
 import {
-  DIST, GELS, changeGels, dec, finishRace, fmt, form, myClub, runRace, setRaceChoice, startRace, wetsuit,
+  COURSE_NAME, DIST, GELS, changeGels, dec, finishRace, fmt, form, myClub, runRace, setRaceChoice, startRace, weatherText, wetsuit,
   type GameState, type RaceChoices, type ResultRow
 } from '../../engine';
 import { Seg } from '../components';
+
+/** Dicas sobre o percurso e o tempo do dia, para as decisões da prova. */
+function conditionTips(game: GameState): string[] {
+  const r = game.race!, w = r.weather!, tips: string[] = [];
+  if (r.course !== 'plano') tips.push(r.course === 'montanhoso' ? 'Muitas subidas: a potência na bike conta mais e o equipamento aero vale metade.' : 'Percurso ondulado: a potência na bike conta um pouco mais.');
+  if (w.air >= 25) tips.push((game.heatUntil ?? 0) >= game.week ? 'Calor, mas estás aclimatado: custa-te bem menos.' : 'Calor: a corrida vai custar. Leva mais um ou dois géis e pensa numa estratégia conservadora.');
+  if (w.wind > 30) tips.push(game.owned.wheels ? 'Vento forte: as rodas de perfil alto vão atrapalhar no vento cruzado.' : 'Vento forte: a bike vai ser lenta para todos.');
+  else if (w.wind >= 20) tips.push('Vento: o equipamento aero vale mais hoje.');
+  if (w.rain) tips.push('Chuva: a bike fica mais lenta e há risco de queda nas curvas.');
+  if ((game.altitudeUntil ?? 0) >= game.week) tips.push('Efeito da altitude: rendes mais 2% hoje.');
+  if (!tips.length) tips.push('Condições boas: nada de especial a ter em conta.');
+  return tips;
+}
 import { GuideCard } from '../guide';
 import { RaceView } from './RaceView';
 import { ShareCard } from './ShareCard';
@@ -35,6 +48,12 @@ export function RaceScreen({ game, apply, onDone }: { game: GameState; apply: Ap
         <h1>{r.n}</h1>
         <div className="small muted">{D.l} · {D.swim} m · {D.bike} km · {dec(D.run)} km · {n} atletas na prova {game.ath.cat === 'F' ? 'feminina' : 'masculina'}</div>
         <div className="small">Água a {r.temp} °C · {r.temp < 22 ? (wetsuit(game) ? 'fato permitido e tens um' : 'fato permitido, mas não tens') : 'sem fatos'} · forma {f >= 0 ? '+' : ''}{Math.round(f)}</div>
+        {r.weather && (
+          <div className="card coach" aria-label="Condições">
+            <b>Condições: percurso {COURSE_NAME[r.course]} · {weatherText(r.weather)}</b>
+            {conditionTips(game).map(t => <div key={t} className="tip info">{t}</div>)}
+          </div>
+        )}
         <span className="small muted">Natação · posição na partida</span>
         <Seg value={r.ch.pos} options={[['frente', 'Frente'], ['lado', 'Lado'], ['tras', 'Trás']]} onChange={choose('pos')} />
         <span className="small muted">Bike · % do FTP</span>
@@ -88,7 +107,9 @@ export function RaceScreen({ game, apply, onDone }: { game: GameState; apply: Ap
       <div className="small">{res.prize ? `${Math.round(res.prize)} € · ` : ''}{res.bonus ? `bónus ${res.bonus} € · ` : ''}+{Math.round(res.fame)} fama · +{res.pts} pontos de ranking</div>
       {res.slot && <div className="small" style={{ color: 'var(--accent)', fontWeight: 700 }}>{res.slot}</div>}
       {res.legend && <div className="small" style={{ color: 'var(--accent)', fontWeight: 700 }}>{res.legend}</div>}
-      <div className="small">{res.beatRival ? `Bateste ${res.rivalNm}. Moral +5.` : `${res.rivalNm} ficou à tua frente desta vez.`}</div>
+      {res.rivalNm
+        ? <div className="small">{res.beatRival ? `Bateste ${res.rivalNm}. Moral +5.` : `${res.rivalNm} ficou à tua frente desta vez.`}</div>
+        : <div className="small muted">O teu rival estava lesionado e falhou esta prova.</div>}
       {card ? <ShareCard game={game} race={r} res={res} onClose={() => setCard(false)} />
         : <button className="btn" onClick={() => setCard(true)}>Cartão para partilhar</button>}
       <button className="btn primary" onClick={() => { apply(s => finishRace(s)); onDone(); }}>Continuar</button>

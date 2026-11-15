@@ -1,5 +1,5 @@
 // Ações do jogador. Todas alteram o estado recebido e, quando faz sentido, devolvem uma mensagem.
-import { CALENDAR, EVENTS, GELS, PRESETS, SHOP, SPONSORS } from './data';
+import { CALENDAR, CAMPS, EVENTS, GELS, PRESETS, SHOP, SPONSORS } from './data';
 import { clamp, eur } from './format';
 import type { GameState, RaceChoices, SessionKey } from './types';
 import { entries, price, weekInSeason } from './world';
@@ -79,4 +79,15 @@ export function toggleEntry(s: GameState, id: string): void {
   s.entries = list.includes(id)
     ? list.filter(x => x !== id)
     : [...list.filter(x => CALENDAR.find(c => c.id === x)?.w !== r.w), id];
+}
+
+/** Marca um estágio a começar já nesta semana. Devolve a mensagem para o jogador. */
+export function bookCamp(s: GameState, id: string): string {
+  const c = CAMPS.find(x => x.id === id);
+  if (!c) return '';
+  if (s.camp) return 'Já estás num estágio.';
+  if (s.money < c.cost) return `Faltam ${eur(c.cost - s.money)} para ${c.n.toLowerCase()}.`;
+  s.money -= c.cost;
+  s.camp = { id, left: c.weeks };
+  return `Estágio marcado: ${c.n}, ${c.weeks} semana${c.weeks > 1 ? 's' : ''} a partir desta.`;
 }

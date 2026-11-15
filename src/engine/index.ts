@@ -10,6 +10,8 @@ export * from './race';
 export * from './actions';
 export * from './coach';
 export * from './pace';
+export * from './weather';
+export * from './rival';
 export * from './import/activities';
 export { parseFIT } from './import/fit';
 export { parseGPX, parseTCX } from './import/xml';

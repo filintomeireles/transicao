@@ -1,5 +1,5 @@
 import {
-  ATTR, BAL, DAY_NAMES, DAYS, DIST, EVENTS, PRESETS, SESS, SESSION_KEYS, SPORT_NAME,
+  ATTR, BAL, CAMPS, DAY_NAMES, DAYS, DIST, EVENTS, PRESETS, SESS, SESSION_KEYS, SPORT_NAME,
   acceptOffer, addRealActivities, ageGroup, applyPreset, bonusFor, canEnter, coachTips, dec, declineOffer, eur, myClub,
   nextRace, projected, raceThisWeek, readFiles, removeReal, resolveEvent, setDay, toggleRealRace, weekInSeason, whyNot,
   type AttrKey, type GameState, type SessionKey
@@ -55,6 +55,10 @@ export function WeekScreen({ game, apply, flash, setFlash, onClose, weeksLeft }:
   return (
     <>
       <Flash text={flash} />
+      {game.camp && (
+        <div className="card acc"><b>Em estágio: {CAMPS.find(c => c.id === game.camp!.id)?.n}</b>
+          <span className="small">{game.camp.left === 1 ? 'Última semana' : `Faltam ${game.camp.left} semanas`}. Os treinos rendem mais, mas esta semana não contas para os eventos do clube.</span></div>
+      )}
       <GuideCard game={game} where="week" apply={apply} />
       <FeedbackPrompt game={game} apply={apply} />
       <Inbox game={game} apply={apply} />

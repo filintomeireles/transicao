@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  CALENDAR, DIST, SPONSORS, canEnter, eur, fmt, isEntered, raceName, season, toggleEntry, weekInSeason, whyNot,
+  CALENDAR, COURSE_NAME, DIST, SPONSORS, canEnter, eur, fmt, isEntered, raceName, season, toggleEntry, weekInSeason, whyNot,
   type GameState, type RaceTier
 } from '../../engine';
 import { FeedbackForm } from '../Feedback';
@@ -39,7 +39,7 @@ export function CareerScreen({ game, apply }: { game: GameState; apply: Apply })
             <div key={r.id} className="item">
               <div>
                 <b>Sem. {r.w} · {r.n}</b> <span className={`chip${r.tier === 'mundial' || r.tier === 'pro' ? ' acc' : ''}`}>{TIER[r.tier]}</span>
-                <div className="small muted">{D.l} · água {r.temp} °C · {r.fee ? `inscrição ${eur(r.fee)} + ` : ''}viagem {eur(r.travel)}{r.prizeMult ? ` · prémios ×${r.prizeMult}` : ''}</div>
+                <div className="small muted">{D.l} · percurso {COURSE_NAME[r.course]} · ar ~{r.air} °C{r.windy >= 20 ? ' · ventoso' : ''} · água {r.temp} °C · {r.fee ? `inscrição ${eur(r.fee)} + ` : ''}viagem {eur(r.travel)}{r.prizeMult ? ` · prémios ×${r.prizeMult}` : ''}</div>
                 {r.slotTo && <div className="small muted">Dá vaga para {raceName(r.slotTo)}: top {r.slot} do escalão{game.slots[r.slotTo] ? ' · já tens vaga' : ''}</div>}
                 {blocked && !res && !past && <div className="small" style={{ color: 'var(--bad)' }}>{blocked}</div>}
                 {L && <div className="small muted">Lenda local: {L.nm === game.ath.name ? <b>tu</b> : L.nm} ({L.count} participações)</div>}

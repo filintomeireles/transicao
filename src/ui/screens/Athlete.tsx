@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  ATTR, BAL, SHOP, SPORT_NAME, ageGroup, eur, form, myClub, overall, quitJob, returnToJob,
+  ATTR, BAL, SHOP, SPORT_NAME, STYLE_NAME, ageGroup, eur, form, myClub, overall, quitJob, returnToJob,
   type AttrKey, type GameState, type Sport
 } from '../../engine';
 import { Track } from '../components';
@@ -42,9 +42,10 @@ export function AthleteScreen({ game, apply, onReset }: { game: GameState; apply
       ))}
 
       <div className="card">
-        <h2>Rival: {game.rival.nm}</h2>
-        <div className="small">{game.rival.age} anos · escalão {ageGroup(game.rival.age)} · nota {Math.round(game.rival.r)}</div>
-        <div className="small muted">Duelos: {game.rival.beaten} vitórias, {game.rival.lost} derrotas.</div>
+        <div className="between"><h2>Rival: {game.rival.nm}</h2>{game.rival.style && <span className="chip">{STYLE_NAME[game.rival.style]}</span>}</div>
+        <div className="small">{game.rival.age} anos · escalão {ageGroup(game.rival.age)} · nota {Math.round(game.rival.r)}{game.rival.out ? ` · lesionado (${game.rival.out} sem.)` : ''}</div>
+        <div className="small muted">Duelos: {game.rival.beaten} vitórias tuas, {game.rival.lost} dele.{(game.rival.run ?? 0) >= 2 ? ` Ganhaste os últimos ${game.rival.run}: mais uma e ele fica para trás.` : ''}</div>
+        {!!game.rivals?.length && <div className="small muted">Rivais antigos: {game.rivals.map(r => `${r.nm} (${r.beaten}–${r.lost})`).join(' · ')}</div>}
       </div>
 
       <div className="card">

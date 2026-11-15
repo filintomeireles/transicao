@@ -1,4 +1,4 @@
-import { SHOP, buy, cancelSubscription, eur, price, type GameState } from '../../engine';
+import { CAMPS, SHOP, bookCamp, buy, cancelSubscription, eur, price, type GameState } from '../../engine';
 import { Flash } from '../components';
 import type { Apply } from '../useGame';
 
@@ -24,6 +24,20 @@ export function ShopScreen({ game, apply, flash, setFlash }: { game: GameState; 
           })}
         </div>
       ))}
+      <div className="card">
+        <h2>Estágios</h2>
+        <span className="small muted">Começam na semana em que os marcas. Durante o estágio não contas para os eventos do clube.</span>
+        {CAMPS.map(c => {
+          const active = game.camp?.id === c.id;
+          return (
+            <div key={c.id} className="item">
+              <div><b>{c.n}</b> <span className="mono small">{eur(c.cost)} · {c.weeks} sem.</span><div className="small muted">{c.d}</div></div>
+              {active ? <span className="chip good">Em curso</span>
+                : <button className="btn sm" onClick={() => setFlash(apply(s => bookCamp(s, c.id)) ?? '')}>{game.money < c.cost ? 'Sem saldo' : 'Marcar'}</button>}
+            </div>
+          );
+        })}
+      </div>
       <div className="small muted">Marcas fictícias. A arte final dos produtos fica para o fim.</div>
     </>
   );

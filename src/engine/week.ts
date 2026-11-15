@@ -1,8 +1,10 @@
 import { BAL } from './balance';
-import { ATTR, ATTR_KEYS, DAYS, EVENTS, GELS, INJURIES, SESS, SHOP, SPONSORS } from './data';
+import { ATTR, ATTR_KEYS, CAMPS, DAYS, EVENTS, GELS, INJURIES, SESS, SHOP, SPONSORS } from './data';
 import { ageGroup, clamp, eur } from './format';
 import { classify, loadRatio } from './import/activities';
 import { pick, random, rnd } from './rng';
+import { rollWeather } from './weather';
+import { rivalPreRace, rivalWeek } from './rival';
 import type { Activity, Attrs, GameState, Session, SessionKey, Sport } from './types';
 import { canAfford, canEnter, myClub, raceThisWeek, season, weekInSeason, whyNot } from './world';
 
@@ -75,6 +77,7 @@ export function processWeek(s: GameState): void {
   const spLoad = { swim: 0, bike: 0, run: 0 };
   let load = 0, newInjury = false, z2 = 0, clubPart = false;
   const weekReal = s.real.flat().length;
+  const campDef = s.camp ? CAMPS.find(c => c.id === s.camp!.id) : undefined;
   let realUsed = 0, realRestDays = 0, groupRun = false;
   const clubDays: string[] = [];
 
@@ -103,11 +106,12 @@ export function processWeek(s: GameState): void {
       // Treino real: bónus até um teto semanal, para não premiar volume sem fim.
       const realBoost = it.real && realUsed++ < BAL.realBonusCap ? BAL.realBonus : 1;
       let m = gainMult(s, sess.sp) * (L / BAL.gainLoad) * realBoost;
-      const b = bonusFor(s, i, k);
+      // Em estágio não estás com o clube.
+      const b = s.camp ? [] : bonusFor(s, i, k);
       if (b.includes('club')) { m *= 1.15; clubPart = true; if (!clubDays.includes(DAYS[i])) clubDays.push(DAYS[i]); }
       if (b.includes('group')) { m *= 1.15; groupRun = true; }
       for (const [at, g0] of Object.entries(sess.g) as [keyof Attrs, number][]) {
-        const g = g0 * Math.pow(1 - s.a[at] / 100, 1.2) * m;
+        const g = g0 * Math.pow(1 - s.a[at] / 100, 1.2) * m * (campDef?.mult[at] ?? 1);
         s.a[at] = Math.min(99, s.a[at] + g);
         gains[at] = (gains[at] ?? 0) + g;
       }
@@ -150,6 +154,17 @@ export function processWeek(s: GameState): void {
   if (realRestDays) bonuses.push(`Descanso real: recuperação extra em ${realRestDays} dia${realRestDays > 1 ? 's' : ''}`);
   if (clubDays.length) bonuses.push(`Treino do clube (${clubDays.join(', ')}): +15%`);
   if (groupRun) bonuses.push('Long run de domingo com o grupo: +15%');
+  // Estágio: conta a semana e, no fim, os efeitos que ficam.
+  if (s.camp && campDef) {
+    bonuses.push(`Estágio: ${campDef.n}`);
+    s.camp.left--;
+    if (s.camp.left <= 0) {
+      if (campDef.id === 'altitude') s.altitudeUntil = s.week + 4;
+      if (campDef.id === 'calor') s.heatUntil = s.week + 6;
+      s.inbox.unshift({ k: 'msg', t: `Estágio terminado: ${campDef.n}`, x: campDef.id === 'altitude' ? 'Voltas com mais glóbulos vermelhos: nas próximas 4 semanas rendes mais 2% em prova.' : campDef.id === 'calor' ? 'Estás aclimatado: nas próximas 6 semanas o calor custa-te muito menos nas provas.' : 'A técnica de natação agradece.', done: true });
+      s.camp = undefined;
+    }
+  }
   // Provas reais marcadas pelo jogador
   for (const r of s.real.flat().filter(x => x.race)) {
     const f = Math.round(3 + r.km / 5);
@@ -233,7 +248,8 @@ export function processWeek(s: GameState): void {
   if (race && enter) {
     s.money -= race.fee + race.travel;
     s.raceCount[race.id] = (s.raceCount[race.id] ?? 0) + 1;
-    s.race = { ...race, stage: 'setup', ch: { pos: 'lado', int: 0.88, gels: GELS[race.t], strat: 'constante' } };
+    if (!s.rival.out) rivalPreRace(s, race.n);
+    s.race = { ...race, stage: 'setup', ch: { pos: 'lado', int: 0.88, gels: GELS[race.t], strat: 'constante' }, weather: rollWeather(race) };
   } else {
     endWeek(s);
   }
@@ -281,6 +297,7 @@ export function endWeek(s: GameState): void {
       break;
     }
   }
+  rivalWeek(s);
   // Estafeta do clube: uma por temporada, na semana 14.
   if (weekInSeason(s) === 14) s.inbox.unshift({ k: 'ev', id: 'estafeta', t: EVENTS.estafeta.t, x: EVENTS.estafeta.x });
   else if (random() < 0.55) {

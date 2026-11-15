@@ -1,5 +1,5 @@
 import { random } from './rng';
-import type { AttrKey, Attrs, Cat, ClubDef, GameState, ProfileKey, RaceDef, RaceType, Session, SessionKey, ShopItem, Sport, SponsorDef } from './types';
+import type { AttrKey, Attrs, Cat, ClubDef, Course, GameState, ProfileKey, RaceDef, RaceType, Session, SessionKey, ShopItem, Sport, SponsorDef } from './types';
 
 export const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] as const;
 export const DAY_NAMES = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'] as const;
@@ -50,19 +50,29 @@ export const RACE_REWARD: Record<RaceType, { prize: number; fame: number; pts: n
 // Caminho para o mundial: Lisboa ou Taça Ibérica dão vaga para o Algarve; o Algarve e a longa distância de Vitória
 // dão vaga para o Mundial. O Grande Prémio Atlântico é por convite (fama) e paga como uma prova profissional.
 export const CALENDAR: RaceDef[] = [
-  { id: 'povoa', w: 3, n: 'Sprint da Póvoa', t: 'sprint', tier: 'regional', core: true, temp: 17, fee: 30, travel: 15, lvl: 46, nM: 46, nF: 24 },
-  { id: 'viseu', w: 5, n: 'Sprint de Viseu', t: 'sprint', tier: 'regional', temp: 19, fee: 30, travel: 25, lvl: 47, nM: 44, nF: 22 },
-  { id: 'viana', w: 6, n: 'Olímpico de Viana', t: 'olimp', tier: 'regional', core: true, temp: 18, fee: 55, travel: 30, lvl: 50, nM: 58, nF: 30 },
-  { id: 'coimbra', w: 8, n: 'Olímpico de Coimbra', t: 'olimp', tier: 'regional', temp: 20, fee: 50, travel: 50, lvl: 51, nM: 52, nF: 28 },
-  { id: 'aveiro', w: 9, n: 'Sprint de Aveiro', t: 'sprint', tier: 'regional', core: true, temp: 20, fee: 30, travel: 40, lvl: 50, nM: 50, nF: 28 },
-  { id: 'sevilha', w: 11, n: 'Meia distância de Sevilha', t: 'meia', tier: 'nacional', temp: 22, fee: 120, travel: 180, lvl: 57, nM: 60, nF: 32 },
-  { id: 'lisboa', w: 12, n: 'Olímpico de Lisboa', t: 'olimp', tier: 'nacional', core: true, temp: 21, fee: 65, travel: 120, lvl: 54, nM: 70, nF: 40, slot: 1, slotTo: 'algarve' },
-  { id: 'vitoria', w: 14, n: 'Longa distância de Vitória', t: 'longa', tier: 'internacional', temp: 20, fee: 250, travel: 300, lvl: 60, nM: 70, nF: 36, slot: 1, slotTo: 'mundial' },
-  { id: 'iberica', w: 16, n: 'Taça Ibérica · Olímpico', t: 'olimp', tier: 'nacional', core: true, temp: 23, fee: 90, travel: 220, lvl: 62, nM: 60, nF: 36, minPts: 60, slot: 2, slotTo: 'algarve' },
-  { id: 'atlantico', w: 17, n: 'Grande Prémio Atlântico (convite)', t: 'meia', tier: 'pro', temp: 21, fee: 0, travel: 150, lvl: 66, nM: 40, nF: 24, minFame: 60, prizeMult: 3 },
-  { id: 'algarve', w: 18, n: 'Meia distância do Algarve', t: 'meia', tier: 'nacional', core: true, temp: 24, fee: 150, travel: 260, lvl: 58, nM: 60, nF: 34, needSlot: true, altPts: 170, slot: 1, slotTo: 'mundial' },
-  { id: 'mundial', w: 20, n: 'Mundial de Longa Distância · Ilha das Brasas', t: 'longa', tier: 'mundial', core: true, temp: 25, fee: 400, travel: 600, lvl: 74, nM: 80, nF: 50, needSlot: true, prizeMult: 4 }
+  { id: 'povoa', w: 3, n: 'Sprint da Póvoa', t: 'sprint', tier: 'regional', course: 'plano', air: 18, windy: 15, core: true, temp: 17, fee: 30, travel: 15, lvl: 46, nM: 46, nF: 24 },
+  { id: 'viseu', w: 5, n: 'Sprint de Viseu', t: 'sprint', tier: 'regional', course: 'ondulado', air: 21, windy: 8, temp: 19, fee: 30, travel: 25, lvl: 47, nM: 44, nF: 22 },
+  { id: 'viana', w: 6, n: 'Olímpico de Viana', t: 'olimp', tier: 'regional', course: 'ondulado', air: 19, windy: 18, core: true, temp: 18, fee: 55, travel: 30, lvl: 50, nM: 58, nF: 30 },
+  { id: 'coimbra', w: 8, n: 'Olímpico de Coimbra', t: 'olimp', tier: 'regional', course: 'ondulado', air: 22, windy: 10, temp: 20, fee: 50, travel: 50, lvl: 51, nM: 52, nF: 28 },
+  { id: 'aveiro', w: 9, n: 'Sprint de Aveiro', t: 'sprint', tier: 'regional', course: 'plano', air: 20, windy: 20, core: true, temp: 20, fee: 30, travel: 40, lvl: 50, nM: 50, nF: 28 },
+  { id: 'sevilha', w: 11, n: 'Meia distância de Sevilha', t: 'meia', tier: 'nacional', course: 'plano', air: 27, windy: 8, temp: 22, fee: 120, travel: 180, lvl: 57, nM: 60, nF: 32 },
+  { id: 'lisboa', w: 12, n: 'Olímpico de Lisboa', t: 'olimp', tier: 'nacional', course: 'plano', air: 22, windy: 16, core: true, temp: 21, fee: 65, travel: 120, lvl: 54, nM: 70, nF: 40, slot: 1, slotTo: 'algarve' },
+  { id: 'vitoria', w: 14, n: 'Longa distância de Vitória', t: 'longa', tier: 'internacional', course: 'ondulado', air: 21, windy: 14, temp: 20, fee: 250, travel: 300, lvl: 60, nM: 70, nF: 36, slot: 1, slotTo: 'mundial' },
+  { id: 'iberica', w: 16, n: 'Taça Ibérica · Olímpico', t: 'olimp', tier: 'nacional', course: 'ondulado', air: 25, windy: 12, core: true, temp: 23, fee: 90, travel: 220, lvl: 62, nM: 60, nF: 36, minPts: 60, slot: 2, slotTo: 'algarve' },
+  { id: 'atlantico', w: 17, n: 'Grande Prémio Atlântico (convite)', t: 'meia', tier: 'pro', course: 'ondulado', air: 22, windy: 22, temp: 21, fee: 0, travel: 150, lvl: 66, nM: 40, nF: 24, minFame: 60, prizeMult: 3 },
+  { id: 'algarve', w: 18, n: 'Meia distância do Algarve', t: 'meia', tier: 'nacional', course: 'montanhoso', air: 26, windy: 12, core: true, temp: 24, fee: 150, travel: 260, lvl: 58, nM: 60, nF: 34, needSlot: true, altPts: 170, slot: 1, slotTo: 'mundial' },
+  { id: 'mundial', w: 20, n: 'Mundial de Longa Distância · Ilha das Brasas', t: 'longa', tier: 'mundial', course: 'plano', air: 30, windy: 28, core: true, temp: 25, fee: 400, travel: 600, lvl: 74, nM: 80, nF: 50, needSlot: true, prizeMult: 4 }
 ];
+export const COURSE_NAME: Record<Course, string> = { plano: 'plano', ondulado: 'ondulado', montanhoso: 'montanhoso' };
+
+/** Estágios: pagos, de 1 ou 2 semanas. Durante o estágio não contas para os eventos do clube. */
+export interface CampDef { id: string; n: string; weeks: number; cost: number; d: string; mult: Partial<Record<AttrKey, number>> }
+export const CAMPS: CampDef[] = [
+  { id: 'altitude', n: 'Estágio em altitude · Serra', weeks: 2, cost: 900, d: '+25% nos ganhos de resistência e, nas 4 semanas seguintes, mais 2% de rendimento em prova.', mult: { swimEnd: 1.25, bikeEnd: 1.25, runEnd: 1.25 } },
+  { id: 'calor', n: 'Estágio de calor · Ilha do Sol', weeks: 1, cost: 600, d: 'Aclimatação: durante 6 semanas o calor nas provas custa-te muito menos.', mult: { bikeEnd: 1.1, runEnd: 1.1 } },
+  { id: 'natacao', n: 'Campo de natação', weeks: 1, cost: 450, d: '+60% nos ganhos de natação, com treinador na piscina todos os dias.', mult: { swimTec: 1.6, swimEnd: 1.6 } }
+];
+
 export const CORE_RACES = CALENDAR.filter(r => r.core).map(r => r.id);
 export const raceById = (id: string): RaceDef | undefined => CALENDAR.find(r => r.id === id);
 

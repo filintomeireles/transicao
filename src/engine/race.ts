@@ -2,18 +2,29 @@ import { ATTR_KEYS, DIST, GELS, OTHER_CLUBS, RACE_REWARD } from './data';
 import { ageGroup, clamp, dec, fmt, pace } from './format';
 import { nameFor } from './athlete';
 import { gauss, pick, random, rnd, shuffle } from './rng';
-import type { Attrs, GameState, LiveEntrant, LiveRace, RaceChoices, RaceDef, ResultRow, Sport, TimedLine, TraceRow } from './types';
+import type { Attrs, Course, GameState, LiveEntrant, LiveRace, RaceChoices, RaceDef, RaceState, ResultRow, Sport, TimedLine, TraceRow } from './types';
 import { bikeGear, form, myClub, raceName, season, wetsuit } from './world';
 import { endWeek } from './week';
+import { rollWeather, weatherText } from './weather';
+import { rivalAfterRace } from './rival';
 
-export interface RaceContext { form: number; fat?: number; bike: number; ws: number; wsFast?: boolean; shoe: number }
+export interface RaceContext {
+  form: number; fat?: number; bike: number; ws: number; wsFast?: boolean; shoe: number;
+  /** Rodas de perfil alto (à parte: com vento cruzado forte deixam de ajudar). */
+  wheels?: number;
+  /** Rendimento extra (efeito da altitude). */
+  boost?: number;
+  /** Percurso e tempo do dia; heatAccl = aclimatado ao calor. */
+  cond?: { course: Course; wind: number; air: number; rain: boolean; heatAccl?: boolean };
+}
 export interface RaceSplits { swim: number; t1: number; bike: number; t2: number; run: number; total: number; ev: [Sport, string][]; spd: number; rp: number }
 
 /** Simula uma prova para um atleta: tempos por segmento a partir dos atributos e das decisões. */
 export function simRace(a: Attrs, race: RaceDef, ch: RaceChoices, ctx: RaceContext): RaceSplits {
   const D = DIST[race.t], ev: [Sport, string][] = [], long = race.t === 'meia';
   const noise = () => 1 + gauss() * 0.015 * (1.3 - (a.mental / 100) * 0.6);
-  const fm = (1 - clamp(ctx.form, -25, 25) * 0.003) * (1 + Math.max(0, (ctx.fat ?? 0) - 60) * 0.001);
+  const fm = (1 - clamp(ctx.form, -25, 25) * 0.003) * (1 + Math.max(0, (ctx.fat ?? 0) - 60) * 0.001) * (1 - (ctx.boost ?? 0));
+  const c = ctx.cond, wind = c?.wind ?? 0, hills = c?.course === 'montanhoso' ? 2 : c?.course === 'ondulado' ? 1 : 0;
 
   const sw = long ? 0.5 * a.swimTec + 0.5 * a.swimEnd : 0.6 * a.swimTec + 0.4 * a.swimEnd;
   const P = ({ frente: [0.965, 0.3], lado: [0.985, 0.1], tras: [1, 0] } as const)[ch.pos];
@@ -22,20 +33,33 @@ export function simRace(a: Attrs, race: RaceDef, ch: RaceChoices, ctx: RaceConte
   if (random() < P[1]) { const x = rnd(25, 70); swim += x; ev.push(['swim', `Pancada na confusão da primeira boia: perdeste ${Math.round(x)} s.`]); }
   const t1 = (50 + (100 - a.trans) * 1.3 + (wsOn ? (ctx.wsFast ? 6 : 14) : 0)) * noise();
 
-  const bk = long ? 0.5 * a.bikePow + 0.5 * a.bikeEnd : 0.7 * a.bikePow + 0.3 * a.bikeEnd;
+  // Subidas: a potência pesa mais.
+  const powW = (long ? 0.5 : 0.7) + hills * 0.05;
+  const bk = powW * a.bikePow + (1 - powW) * a.bikeEnd;
   const I: Record<string, [number, number]> = { '0.75': [0.95, 24], '0.82': [0.975, 38], '0.88': [1, 54], '0.95': [1.025, 80] };
   const [speedF, cost] = I[String(ch.int)] ?? I['0.88'];
-  const bike = (D.bike / ((43 - (90 - bk) * 0.31) * speedF * (1 + ctx.bike))) * 3600 * fm * noise();
+  // Vento: abranda todos, mas o equipamento aero vale mais; em subida vale metade.
+  const aeroK = (1 + wind / 40) * (hills === 2 ? 0.5 : 1);
+  let wheels = (ctx.wheels ?? 0) * aeroK;
+  if (wind > 30 && ctx.wheels) { wheels = -0.01; ev.push(['bike', 'Vento cruzado forte: as rodas de perfil alto atrapalharam.']); }
+  const courseF = [1, 0.96, 0.9][hills], windF = 1 - (wind / 40) * 0.06, rainF = c?.rain ? 0.97 : 1;
+  let bike = (D.bike / ((43 - (90 - bk) * 0.31) * speedF * (1 + ctx.bike * aeroK + wheels) * courseF * windF * rainF)) * 3600 * fm * noise();
+  if (c?.rain && random() < 0.06) { const x = rnd(30, 90); bike += x; ev.push(['bike', `Escorregaste numa curva molhada: perdeste ${Math.round(x)} s.`]); }
 
   let energy = 100 - cost * (D.bike / 40) * (1.3 - (a.bikeEnd / 100) * 0.6) - 45 * (D.run / 10) * (1.3 - (a.runEnd / 100) * 0.6) + ch.gels * 14;
+  // Calor: custa energia e ritmo na corrida; a aclimatação reduz o efeito.
+  const heat = c && c.air >= 25 ? (c.air - 24) * (c.heatAccl ? 0.4 : 1) : 0;
+  energy -= heat * 3;
   let stomach = 0;
   if (ch.gels > GELS[race.t] + 1 && random() < 0.45) { stomach = rnd(50, 130); ev.push(['bike', `Géis a mais: estômago às voltas. Perdeste ${Math.round(stomach)} s.`]); }
   const t2 = (35 + (100 - a.trans) * 0.8) * noise();
 
-  const rr = long ? 0.4 * a.runSpd + 0.6 * a.runEnd : 0.6 * a.runSpd + 0.4 * a.runEnd;
+  const spdW = (long ? 0.4 : 0.6) - hills * 0.05;
+  const rr = spdW * a.runSpd + (1 - spdW) * a.runEnd;
   const ST = ({ conservador: [1.02, 10], constante: [1, 0], agressivo: [0.975, -15], negativo: [0.99, -5] } as const)[ch.strat];
   energy += ST[1];
-  let rp = (185 + (90 - rr) * 4.7) * ST[0] * (1 - ctx.shoe);
+  let rp = (185 + (90 - rr) * 4.7) * ST[0] * (1 - ctx.shoe) * [1, 1.01, 1.03][hills] * (1 + heat * 0.012);
+  if (heat >= 5 && !c?.heatAccl) ev.push(['run', 'O calor apertou: o ritmo caiu na corrida.']);
   if (ch.strat === 'negativo' && a.mental < 55 && random() < 0.5) { rp *= 1.02; ev.push(['run', 'Querias acelerar na segunda metade, mas a cabeça não deixou.']); }
   if (energy < 20) { const k = (20 - energy) * 0.006; rp *= 1 + k; ev.push(['run', `Bateste na parede: o ritmo caiu ${Math.round(k * 100)}%.`]); }
   const run = D.run * rp * fm * noise() + stomach;
@@ -67,13 +91,15 @@ export function startRace(s: GameState): void {
   const cat = s.ath.cat, n = cat === 'F' ? r.nF : r.nM;
   const mean = r.lvl + (cat === 'F' ? -8 : 0) + (season(s) - 1) * 3;
   const used = new Set([s.ath.name]), field: LiveEntrant[] = [];
+  r.weather ??= rollWeather(r);
+  const cond = { course: r.course, wind: r.weather.wind, air: r.weather.air, rain: r.weather.rain };
   const add = (nm: string, age: number, R: number, tag: LiveEntrant['tag'], club: string) => {
     used.add(nm);
     const ch: RaceChoices = { pos: pick(['frente', 'lado', 'lado', 'tras'] as const), int: r.t === 'meia' ? 0.82 : 0.88, gels: GELS[r.t], strat: 'constante' };
-    const sp = simRace(attrsAround(R), r, ch, { form: gauss() * 6, bike: rnd(0, 0.06), ws: 0.04, shoe: rnd(0, 0.015) });
+    const sp = simRace(attrsAround(R), r, ch, { form: gauss() * 6, bike: rnd(0, 0.04), wheels: random() < 0.5 ? 0.02 : 0, ws: 0.04, shoe: rnd(0, 0.015), cond });
     field.push({ nm, age, ag: ageGroup(age), tag, club, swim: sp.swim, t1: sp.t1, bike: sp.bike, t2: sp.t2, run: sp.run, ev: [] });
   };
-  add(s.rival.nm, s.rival.age, s.rival.r, 'rival', pick(OTHER_CLUBS));
+  if (!s.rival.out) add(s.rival.nm, s.rival.age, s.rival.r, 'rival', pick(OTHER_CLUBS)); // lesionado, falha a prova
   const friends = shuffle(s.club.members.filter(m => m.cat === cat)).slice(0, random() < 0.5 ? 2 : 3);
   for (const m of friends) add(m.nm, m.age, m.r, 'clube', myClub(s).n);
   while (field.length < n - 1) {
@@ -82,7 +108,12 @@ export function startRace(s: GameState): void {
     const age = 18 + Math.floor(random() * 47);
     add(nm, age, mean + gauss() * 10 - Math.max(0, age - 40) * 0.35, '', random() < 0.5 ? pick(OTHER_CLUBS) : '');
   }
-  const sp = simRace(s.a, r, r.ch, { form: form(s), fat: s.fatigue, bike: bikeGear(s), ws: wetsuit(s), wsFast: !!s.owned.wsPro, shoe: s.owned.carbon ? 0.015 : 0 });
+  const wheels = s.owned.wheels ? 0.02 : 0;
+  const sp = simRace(s.a, r, r.ch, {
+    form: form(s), fat: s.fatigue, bike: bikeGear(s) - wheels, wheels, ws: wetsuit(s), wsFast: !!s.owned.wsPro, shoe: s.owned.carbon ? 0.015 : 0,
+    boost: (s.altitudeUntil ?? 0) >= s.week ? 0.02 : 0,
+    cond: { ...cond, heatAccl: (s.heatUntil ?? 0) >= s.week }
+  });
   field.push({ nm: s.ath.name, age: s.ath.age, ag: ageGroup(s.ath.age), tag: 'tu', club: myClub(s).n, swim: sp.swim, t1: sp.t1, bike: sp.bike, t2: sp.t2, run: sp.run, ev: sp.ev, me: true });
   r.live = { field, baseT1: sp.t1, baseT2: sp.t2, t1Score: null, t2Score: null, sprint: null, sprintDone: false };
   r.stage = 'live';
@@ -132,7 +163,8 @@ interface Outcome {
   N: number;
   agList: LiveEntrant[];
   agP: number;
-  riv: LiveEntrant;
+  /** Ausente quando o rival está lesionado. */
+  riv?: LiveEntrant;
   beatRival: boolean;
   catL: string;
   o: string;
@@ -142,9 +174,9 @@ function outcome(s: GameState, L: LiveRace): Outcome {
   const sorted = [...L.field].sort((a, b) => total(a) - total(b));
   const me = meOf(L), p = sorted.indexOf(me) + 1;
   const agList = sorted.filter(f => f.ag === me.ag);
-  const riv = L.field.find(f => f.tag === 'rival')!;
+  const riv = L.field.find(f => f.tag === 'rival');
   const cat = s.ath.cat;
-  return { sorted, me, p, N: sorted.length, agList, agP: agList.indexOf(me) + 1, riv, beatRival: total(me) < total(riv), catL: cat === 'F' ? 'feminina' : 'masculina', o: cat === 'F' ? 'ª' : 'º' };
+  return { sorted, me, p, N: sorted.length, agList, agP: agList.indexOf(me) + 1, riv, beatRival: !!riv && total(me) < total(riv), catL: cat === 'F' ? 'feminina' : 'masculina', o: cat === 'F' ? 'ª' : 'º' };
 }
 
 /** Tempos de passagem e relato da prova a decorrer, com as transições e o sprint como estão agora. */
@@ -201,8 +233,8 @@ export function finishLiveRace(s: GameState): void {
   s.a.mental = Math.min(99, s.a.mental + 0.6);
   s.a.trans = Math.min(99, s.a.trans + 0.4);
   s.moral = clamp(s.moral + (p <= N * 0.2 ? 8 : p > N * 0.6 ? -6 : 2) + (beatRival ? 5 : 0), 0, 100);
-  if (beatRival) s.rival.beaten++; else s.rival.lost++;
-  s.rival.r += 0.6 + random() * 0.8 + (beatRival ? 0.6 : 0);
+  const rivalNm = riv?.nm ?? '';
+  if (riv) rivalAfterRace(s, beatRival);
   const lost = s.sponsors.filter(sp => sp.req && p / N > sp.req);
   for (const sp of lost) s.inbox.unshift({ k: 'msg', t: `${sp.n} rescindiu o contrato`, x: `Acabaste em ${p}${o} de ${N}, fora do top ${Math.round(sp.req! * 100)}%.`, done: true });
   s.sponsors = s.sponsors.filter(sp => !lost.includes(sp));
@@ -214,7 +246,7 @@ export function finishLiveRace(s: GameState): void {
 
   s.results.push({ week: s.week, season: season(s), id: r.id, n: r.n, t: r.t, p, N, agP, agN: agList.length, ag: me.ag, total: total(me) });
   r.stage = 'done';
-  r.res = { timeline, trace, p, N, agP, agN: agList.length, ag: me.ag, catL: out.catL, o, me: { swim: me.swim, t1: me.t1, bike: me.bike, t2: me.t2, run: me.run, total: total(me) }, lists, prize, bonus, fame, pts, slot, legend, beatRival, rivalNm: riv.nm };
+  r.res = { timeline, trace, p, N, agP, agN: agList.length, ag: me.ag, catL: out.catL, o, me: { swim: me.swim, t1: me.t1, bike: me.bike, t2: me.t2, run: me.run, total: total(me) }, lists, prize, bonus, fame, pts, slot, legend, beatRival, rivalNm };
   delete r.live;
 }
 
@@ -238,13 +270,13 @@ const transitionNote = (score: number | null): string =>
 /** Relato da prova, cada linha no momento em que acontece. */
 function buildTimeline(s: GameState, r: RaceDef, L: LiveRace, x: Outcome): TimedLine[] {
   const me = x.me, D = DIST[r.t];
-  const [c0, c1, c2, c3, c4] = cumulative(me), [, , , rv3, rv4] = cumulative(x.riv);
+  const [c0, c1, c2, c3, c4] = cumulative(me);
   const posAt = (k: 0 | 2) => [...L.field].sort((a, b) => cumulative(a)[k] - cumulative(b)[k]).indexOf(me) + 1;
   const wsOn = r.temp < 22 && wetsuit(s) > 0;
   const at = (sp: Sport): number => (sp === 'swim' ? c0 * 0.35 : sp === 'bike' ? c1 + (c2 - c1) * 0.7 : c3 + (c4 - c3) * 0.6);
   const riv = x.riv;
   const lines: TimedLine[] = [
-    { at: 0, sp: 'gen', text: `Partida da prova ${x.catL}: ${x.N} atletas, água a ${r.temp} °C${r.temp < 22 ? (wsOn ? ', com fato' : ', sem fato isotérmico') : ''}.` },
+    { at: 0, sp: 'gen', text: `Partida da prova ${x.catL}: ${x.N} atletas, água a ${r.temp} °C${r.temp < 22 ? (wsOn ? ', com fato' : ', sem fato isotérmico') : ''}${(r as RaceState).weather ? `, ${weatherText((r as RaceState).weather!)}` : ''}.` },
     ...me.ev.map(([sp, text]) => ({ at: at(sp), sp, text })),
     { at: c0, sp: 'swim', text: `Sais da água em ${posAt(0)}${x.o} (${pace(me.swim / (D.swim / 100))}/100 m).` },
     { at: c1, sp: 'gen', text: `T1 em ${fmt(me.t1)}.${transitionNote(L.t1Score)}` },
@@ -253,11 +285,14 @@ function buildTimeline(s: GameState, r: RaceDef, L: LiveRace, x: Outcome): Timed
   ];
   if (L.sprint) lines.push({ at: Math.max(c3, c4 - 2), sp: 'run', text: L.sprint.won ? `Sprint final com ${L.sprint.nm}: ganhas no último metro!` : `Sprint final com ${L.sprint.nm}: ganha-te por um palmo.` });
   // O duelo com o rival na corrida, no momento em que se cruzam.
-  const meAheadAtT2 = c3 < rv3, meAheadAtEnd = c4 < rv4, cross = crossing(c3, c4, rv3, rv4);
-  if (meAheadAtT2 !== meAheadAtEnd && cross != null) {
-    lines.push({ at: cross, sp: 'run', text: meAheadAtEnd ? `Passas ${riv.nm}! O teu rival fica para trás.` : `${riv.nm} passa por ti na corrida.` });
-  } else {
-    lines.push({ at: c3 + (c4 - c3) * 0.3, sp: 'run', text: meAheadAtEnd ? `Corres à frente de ${riv.nm}. Não olhes para trás.` : `${riv.nm} vai à tua frente na corrida.` });
+  if (riv) {
+    const [, , , rv3, rv4] = cumulative(riv);
+    const meAheadAtT2 = c3 < rv3, meAheadAtEnd = c4 < rv4, cross = crossing(c3, c4, rv3, rv4);
+    if (meAheadAtT2 !== meAheadAtEnd && cross != null) {
+      lines.push({ at: cross, sp: 'run', text: meAheadAtEnd ? `Passas ${riv.nm}! O teu rival fica para trás.` : `${riv.nm} passa por ti na corrida.` });
+    } else {
+      lines.push({ at: c3 + (c4 - c3) * 0.3, sp: 'run', text: meAheadAtEnd ? `Corres à frente de ${riv.nm}. Não olhes para trás.` : `${riv.nm} vai à tua frente na corrida.` });
+    }
   }
   lines.push({ at: c4, sp: 'run', text: `Meta! ${x.p}${x.o} da geral ${x.catL}, ${x.agP}${x.o} no escalão.` });
   return lines.sort((a, b) => a.at - b.at);

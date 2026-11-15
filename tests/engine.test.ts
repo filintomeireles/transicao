@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   BAL, CALENDAR, NEUTRAL_SCORE, PROFILES, addRealActivities, applySprint, applyTransition, buy, coachTips, createAthlete,
   canEnter, finishLiveRace, finishRace, form, isEntered, processWeek, resolveEvent, runRace, setSeed, sprintOpponent, startRace,
-  takeWeek, toggleEntry, toggleRealRace, weekInSeason, weeksAvailable, whyNot,
+  takeWeek, toggleEntry, toggleRealRace, weekInSeason, weeksAvailable, whyNot, simRace, bookCamp, CAMPS, rivalAfterRace,
   type GameState, type NewAthlete
 } from '../src/engine';
 
@@ -260,5 +260,86 @@ describe('calendário e mundial', () => {
     runRace(s);
     expect(s.titles?.length).toBe(1);
     expect(s.titles![0]).toMatch(/Mundo|Mundial/);
+  });
+});
+
+describe('meteorologia e percursos', () => {
+  const a = PROFILES.runner.a;
+  const avgRun = (cond: Parameters<typeof simRace>[3]['cond']) => {
+    setSeed(3);
+    const race = CALENDAR.find(r => r.id === 'viana')!;
+    let sum = 0;
+    for (let i = 0; i < 200; i++) sum += simRace(a, race, { pos: 'lado', int: 0.88, gels: 2, strat: 'constante' }, { form: 0, bike: 0, ws: 0, shoe: 0, cond }).run;
+    return sum / 200;
+  };
+
+  it('o calor abranda a corrida, e a aclimatação reduz o efeito', () => {
+    const cool = avgRun({ course: 'plano', wind: 0, air: 18, rain: false });
+    const hot = avgRun({ course: 'plano', wind: 0, air: 32, rain: false });
+    const hotAccl = avgRun({ course: 'plano', wind: 0, air: 32, rain: false, heatAccl: true });
+    expect(hot).toBeGreaterThan(cool * 1.05);
+    expect(hotAccl).toBeLessThan(hot);
+    expect(hotAccl).toBeGreaterThan(cool);
+  });
+
+  it('com vento forte as rodas de perfil alto deixam de ajudar', () => {
+    setSeed(5);
+    const race = CALENDAR.find(r => r.id === 'viana')!;
+    const ch = { pos: 'lado' as const, int: 0.88, gels: 2, strat: 'constante' as const };
+    const res = simRace(a, race, ch, { form: 0, bike: 0, wheels: 0.02, ws: 0, shoe: 0, cond: { course: 'plano', wind: 35, air: 20, rain: false } });
+    expect(res.ev.some(e => e[1].includes('rodas de perfil alto'))).toBe(true);
+  });
+
+  it('cada prova tem o tempo do dia', () => {
+    const s = newGame();
+    processWeek(s); processWeek(s); processWeek(s);
+    expect(s.race?.weather).toBeDefined();
+    expect(s.race!.weather!.air).toBeGreaterThan(0);
+  });
+});
+
+describe('estágios', () => {
+  it('o estágio de natação multiplica os ganhos de natação e cobra', () => {
+    const plan: GameState['plan'] = ['swimTec', 'swimEnd', 'swimTec', 'swimEnd', 'rest', 'swimTec', 'rest'];
+    const a = newGame(); a.plan = plan.slice(); processWeek(a);
+    setSeed(42);
+    const b = newGame(); b.plan = plan.slice();
+    const money = b.money;
+    expect(bookCamp(b, 'natacao')).toContain('Estágio marcado');
+    expect(b.money).toBe(money - CAMPS.find(c => c.id === 'natacao')!.cost);
+    processWeek(b);
+    expect(b.a.swimTec).toBeGreaterThan(a.a.swimTec);
+    expect(b.camp).toBeUndefined();
+  });
+
+  it('a altitude deixa um efeito de 4 semanas', () => {
+    const s = newGame();
+    s.money = 2000; // um atleta novo tem 850 € e o estágio custa 900 €
+    expect(bookCamp(s, 'altitude')).toContain('Estágio marcado');
+    processWeek(s); processWeek(s);
+    expect(s.altitudeUntil).toBeGreaterThanOrEqual(s.week + 2);
+  });
+});
+
+describe('rival com história', () => {
+  it('três vitórias seguidas sobre o rival trazem um rival novo', () => {
+    const s = newGame();
+    const first = s.rival.nm;
+    rivalAfterRace(s, true); rivalAfterRace(s, true);
+    expect(s.rival.nm).toBe(first);
+    rivalAfterRace(s, true);
+    expect(s.rival.nm).not.toBe(first);
+    expect(s.rivals?.[0].nm).toBe(first);
+    expect(s.inbox.some(m => m.t.startsWith('Novo rival'))).toBe(true);
+  });
+
+  it('um rival lesionado não aparece na prova', () => {
+    const s = newGame();
+    processWeek(s); processWeek(s);
+    s.rival.out = 3;
+    processWeek(s);
+    runRace(s);
+    expect(s.race!.res!.trace.some(r => r.tag === 'rival')).toBe(false);
+    expect(s.race!.res!.rivalNm).toBe('');
   });
 });

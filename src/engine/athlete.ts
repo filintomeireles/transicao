@@ -67,7 +67,7 @@ export function createAthlete(o: NewAthlete, imp: ImportSummary | null): GameSta
     plan: PRESETS['Típica'].slice(), real: [[], [], [], [], [], [], []], rain: false,
     owned: base.owned, subs: {}, shoeKm: base.shoeKm, shoeWarned: false, gear: base.gear,
     sponsors: [], offered: {}, renew: {},
-    rival: { nm: rivalNm, age: clamp(age + Math.round(gauss() * 3), 18, 80), r: overall(base.a) + 4, beaten: 0, lost: 0 },
+    rival: { nm: rivalNm, age: clamp(age + Math.round(gauss() * 3), 18, 80), r: overall(base.a) + 4, beaten: 0, lost: 0, style: pick(['provocador', 'cavalheiro', 'calculista'] as const), run: 0 },
     club: { id: club.id, members, div: 2, score: 0, season: 0, part: 0, myPts: null, clubPart: false, others: OTHER_CLUBS.map(n => ({ n, base: rnd(60, 95), score: 0, season: 0 })) },
     legends, raceCount: {}, slots: {}, chal: null,
     invite: name.slice(0, 3).toUpperCase().replace(/[^A-ZÇÃÕÁÉÍÓÚ]/g, 'X') + '-' + Math.floor(random() * 36 ** 4).toString(36).toUpperCase().padStart(4, '0'),

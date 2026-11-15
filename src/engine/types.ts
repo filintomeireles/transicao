@@ -4,6 +4,10 @@ export type AttrKey = 'swimTec' | 'swimEnd' | 'bikePow' | 'bikeEnd' | 'runSpd' |
 export type Attrs = Record<AttrKey, number>;
 export type SessionKey = 'rest' | 'swimTec' | 'swimEnd' | 'bikeZ2' | 'bikeInt' | 'runZ2' | 'runInt' | 'brick' | 'str';
 export type RaceType = 'sprint' | 'olimp' | 'meia' | 'longa';
+export type Course = 'plano' | 'ondulado' | 'montanhoso';
+export type RivalStyle = 'provocador' | 'cavalheiro' | 'calculista';
+/** Tempo no dia da prova: temperatura do ar (°C), vento (km/h), chuva. */
+export interface Weather { air: number; wind: number; rain: boolean }
 export type RaceTier = 'regional' | 'nacional' | 'internacional' | 'pro' | 'mundial';
 export type StartKind = 'files' | 'preset' | 'filinto';
 export type ProfileKey = 'runner' | 'cyclist' | 'swimmer';
@@ -103,6 +107,11 @@ export interface RaceDef {
   nM: number;
   nF: number;
   tier: RaceTier;
+  /** Percurso da bike e da corrida. */
+  course: Course;
+  /** Temperatura do ar e vento típicos (o tempo do dia varia à volta disto). */
+  air: number;
+  windy: number;
   /** Inscrita por defeito no início de cada temporada. */
   core?: boolean;
   /** Vagas por escalão (top `slot`) para a prova `slotTo`. */
@@ -184,6 +193,7 @@ export interface LiveRace {
 export interface RaceState extends RaceDef {
   stage: 'setup' | 'live' | 'done';
   ch: RaceChoices;
+  weather?: Weather;
   live?: LiveRace;
   res?: RaceResult;
 }
@@ -232,7 +242,22 @@ export interface GameState {
   sponsors: ActiveSponsor[];
   offered: Record<string, boolean>;
   renew: Record<string, number>;
-  rival: { nm: string; age: number; r: number; beaten: number; lost: number };
+  rival: {
+    nm: string; age: number; r: number; beaten: number; lost: number;
+    style?: RivalStyle;
+    /** Resultados seguidos contra ti: positivo = vitórias tuas, negativo = dele. */
+    run?: number;
+    /** Semanas de fora por lesão. */
+    out?: number;
+  };
+  /** Rivais antigos. */
+  rivals?: { nm: string; beaten: number; lost: number; until: number }[];
+  /** Estágio em curso. */
+  camp?: { id: string; left: number };
+  /** Semana (absoluta) até à qual tens aclimatação ao calor. */
+  heatUntil?: number;
+  /** Semana (absoluta) até à qual dura o efeito da altitude. */
+  altitudeUntil?: number;
   club: ClubState;
   legends: Record<string, { nm: string; count: number }>;
   raceCount: Record<string, number>;
