@@ -23,8 +23,17 @@ com `dist/assets/app.js` e `dist/assets/app.css`.
 
 ## Android (Capacitor)
 
-O projeto Android está em `android/`. Para compilar é preciso instalar o
-[Android Studio](https://developer.android.com/studio) (traz o Java e o Android SDK).
+O projeto Android está em `android/` (Capacitor 8.6.2). Para compilar é preciso instalar o
+[Android Studio](https://developer.android.com/studio) (traz o Java e o Android SDK) e abri-lo uma vez
+para descarregar o SDK. O Android Studio atual traz o Java 25, por isso o wrapper do Gradle foi
+atualizado para a 9.1.0 (a 8.14 do Capacitor não corre em Java 25). Se voltares a gerar a pasta
+`android/`, repete essa alteração em `android/gradle/wrapper/gradle-wrapper.properties`.
+
+Na linha de comandos, antes de `npm run android:apk`, aponta para o Java do Android Studio:
+
+```bash
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+```
 
 ```bash
 npm run android        # build web + copia para o projeto Android

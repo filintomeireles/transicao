@@ -114,8 +114,15 @@ export interface RaceChoices {
 
 export interface ResultRow { pos: number; nm: string; tag: string; ag: string; total: number; me: boolean }
 
+/** Tempos acumulados de um atleta à saída de cada segmento: natação, T1, bike, T2, meta (segundos). */
+export interface TraceRow { nm: string; tag: string; me: boolean; cum: [number, number, number, number, number] }
+
+/** Uma linha do relato, no segundo de prova em que acontece. */
+export interface TimedLine { at: number; sp: Sport; text: string }
+
 export interface RaceResult {
-  feed: [Sport, string][];
+  timeline: TimedLine[];
+  trace: TraceRow[];
   p: number;
   N: number;
   agP: number;

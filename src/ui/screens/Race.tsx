@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   DIST, GELS, changeGels, dec, finishRace, fmt, form, myClub, runRace, setRaceChoice, wetsuit,
   type GameState, type RaceChoices, type ResultRow
 } from '../../engine';
 import { Seg } from '../components';
+import { RaceView } from './RaceView';
 import type { Apply } from '../useGame';
 
 type View = 'geral' | 'escalao' | 'clube';
@@ -11,22 +12,19 @@ type View = 'geral' | 'escalao' | 'clube';
 export function RaceScreen({ game, apply, onRunning, onDone }: { game: GameState; apply: Apply; onRunning: (r: boolean) => void; onDone: () => void }) {
   const r = game.race!;
   const D = DIST[r.t];
-  const [shown, setShown] = useState<number | null>(null); // null = mostrar tudo
+  const [live, setLive] = useState(false);
   const [view, setView] = useState<View>('escalao');
   const res = r.res;
-  const running = shown !== null && !!res && shown < res.feed.length;
+  const running = live && !!res;
+  const endLive = useCallback(() => { setLive(false); window.scrollTo(0, 0); }, []);
 
   useEffect(() => { onRunning(running); }, [running, onRunning]);
-  useEffect(() => {
-    if (!running) return;
-    const t = setTimeout(() => setShown(n => (n ?? 0) + 1), 800);
-    return () => clearTimeout(t);
-  }, [running, shown]);
 
   function start() {
     apply(s => runRace(s));
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setShown(reduce ? null : 1);
+    // Com movimento reduzido salta diretamente para o resultado.
+    setLive(!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    window.scrollTo(0, 0);
   }
 
   if (r.stage === 'setup') {
@@ -57,17 +55,7 @@ export function RaceScreen({ game, apply, onRunning, onDone }: { game: GameState
   }
 
   if (!res) return null;
-  const feed = res.feed.slice(0, shown ?? res.feed.length);
-  if (running) {
-    return (
-      <>
-        <h1>{r.n}</h1>
-        <div className="feed" aria-live="polite">
-          {feed.map(([sp, t], i) => <div key={i} style={{ ['--sp' as string]: `var(--${sp === 'gen' ? 'line' : sp})` }}>{t}</div>)}
-        </div>
-      </>
-    );
-  }
+  if (running) return <RaceView res={res} race={r} onEnd={endLive} />;
 
   const list = res.lists[view];
   const number = (x: ResultRow, i: number) => (view === 'geral' ? x.pos : view === 'escalao' && x.me ? res.agP : i + 1);

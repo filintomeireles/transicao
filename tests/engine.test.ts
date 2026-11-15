@@ -76,6 +76,22 @@ describe('prova', () => {
     expect(weekInSeason(s)).toBe(4);
   });
 
+  it('guarda os tempos de passagem de todo o pelotão e um relato ordenado', () => {
+    const s = newGame();
+    for (let i = 0; i < 3; i++) processWeek(s);
+    runRace(s);
+    const res = s.race!.res!;
+    expect(res.trace).toHaveLength(res.N);
+    for (const r of res.trace) for (let i = 1; i < 5; i++) expect(r.cum[i]).toBeGreaterThanOrEqual(r.cum[i - 1]);
+    const me = res.trace.find(r => r.me)!;
+    expect(me.cum[4]).toBeCloseTo(res.me.total, 0);
+    expect(res.trace.filter(r => r.cum[4] < me.cum[4])).toHaveLength(res.p - 1);
+    const ats = res.timeline.map(l => l.at);
+    expect(ats).toEqual([...ats].sort((a, b) => a - b));
+    expect(res.timeline.at(-1)!.text).toContain('Meta!');
+    expect(res.timeline.at(-1)!.at).toBeCloseTo(me.cum[4], 0);
+  });
+
   it('é reproduzível com a mesma semente', () => {
     const run = () => { setSeed(7); const s = newGame(); for (let i = 0; i < 3; i++) processWeek(s); runRace(s); return s.race!.res!.me.total; };
     expect(run()).toBe(run());

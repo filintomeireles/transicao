@@ -2,7 +2,7 @@ import { ATTR_KEYS, DIST, GELS, OTHER_CLUBS, RACE_REWARD } from './data';
 import { ageGroup, clamp, dec, fmt, pace } from './format';
 import { nameFor } from './athlete';
 import { gauss, pick, random, rnd, shuffle } from './rng';
-import type { Attrs, GameState, RaceChoices, RaceDef, ResultRow, Sport } from './types';
+import type { Attrs, GameState, RaceChoices, RaceDef, ResultRow, Sport, TimedLine, TraceRow } from './types';
 import { bikeGear, form, myClub, season, wetsuit } from './world';
 import { endWeek } from './week';
 
@@ -92,18 +92,8 @@ export function runRace(s: GameState): void {
   const catL = cat === 'F' ? 'feminina' : 'masculina', o = cat === 'F' ? 'ª' : 'º';
   const wsOn = r.temp < 22 && wetsuit(s) > 0;
 
-  const feed: [Sport, string][] = [
-    ['gen', `Partida da prova ${catL}: ${N} atletas, água a ${r.temp} °C${r.temp < 22 ? (wsOn ? ', com fato' : ', sem fato isotérmico') : ''}.`],
-    ...me.ev.filter(e => e[0] === 'swim'),
-    ['swim', `Sais da água em ${pSwim}${o} (${pace(me.swim / (DIST[r.t].swim / 100))}/100 m).`],
-    ['gen', `T1 em ${fmt(me.t1)}.`],
-    ...me.ev.filter(e => e[0] === 'bike'),
-    ['bike', `Bike a ${dec(me.spd)} km/h. Chegas à T2 em ${pBike}${o}.`],
-    ['gen', `T2 em ${fmt(me.t2)}.`],
-    ...me.ev.filter(e => e[0] === 'run'),
-    ['run', beatRival ? `Passas ${riv.nm} na corrida!` : `${riv.nm} vai à tua frente na corrida.`],
-    ['run', `Meta! ${p}${o} da geral ${catL}, ${agP}${o} no escalão ${me.ag}.`]
-  ];
+  const trace: TraceRow[] = field.map(f => ({ nm: f.nm, tag: f.tag, me: !!f.me, cum: cumulative(f) }));
+  const timeline = buildTimeline(me, riv, { N, catL, o, pSwim, pBike, p, agP, temp: r.temp, wsOn, swimM: DIST[r.t].swim });
 
   const rt = RACE_REWARD[r.t];
   const prize = p <= 3 ? [300, 150, 80][p - 1] * rt.prize : 0;
@@ -136,7 +126,44 @@ export function runRace(s: GameState): void {
 
   s.results.push({ week: s.week, season: season(s), id: r.id, n: r.n, t: r.t, p, N, agP, agN: agList.length, ag: me.ag, total: me.total });
   r.stage = 'done';
-  r.res = { feed, p, N, agP, agN: agList.length, ag: me.ag, catL, o, me: { swim: me.swim, t1: me.t1, bike: me.bike, t2: me.t2, run: me.run, total: me.total }, lists, prize, bonus, fame, pts, slot, legend, beatRival, rivalNm: riv.nm };
+  r.res = { timeline, trace, p, N, agP, agN: agList.length, ag: me.ag, catL, o, me: { swim: me.swim, t1: me.t1, bike: me.bike, t2: me.t2, run: me.run, total: me.total }, lists, prize, bonus, fame, pts, slot, legend, beatRival, rivalNm: riv.nm };
+}
+
+const r1 = (x: number) => Math.round(x * 10) / 10;
+const cumulative = (f: RaceSplits): TraceRow['cum'] => {
+  const a = f.swim, b = a + f.t1, c = b + f.bike, d = c + f.t2;
+  return [r1(a), r1(b), r1(c), r1(d), r1(d + f.run)];
+};
+
+/** Segundo de prova em que dois atletas no mesmo segmento ficam lado a lado (ou null se não se cruzam). */
+function crossing(a0: number, a1: number, b0: number, b1: number): number | null {
+  const ra = a1 - a0, rb = b1 - b0;
+  if (Math.abs(rb - ra) < 1e-6) return null;
+  const t = (a0 * rb - b0 * ra) / (rb - ra);
+  return t > Math.max(a0, b0) && t < Math.min(a1, b1) ? t : null;
+}
+
+/** Relato da prova, cada linha no momento em que acontece. */
+function buildTimeline(me: RaceSplits, riv: RaceSplits & { nm: string }, x: { N: number; catL: string; o: string; pSwim: number; pBike: number; p: number; agP: number; temp: number; wsOn: boolean; swimM: number }): TimedLine[] {
+  const [c0, c1, c2, c3, c4] = cumulative(me), [, , , rv3, rv4] = cumulative(riv);
+  const at = (sp: Sport): number => (sp === 'swim' ? c0 * 0.35 : sp === 'bike' ? c1 + (c2 - c1) * 0.7 : c3 + (c4 - c3) * 0.6);
+  const lines: TimedLine[] = [
+    { at: 0, sp: 'gen', text: `Partida da prova ${x.catL}: ${x.N} atletas, água a ${x.temp} °C${x.temp < 22 ? (x.wsOn ? ', com fato' : ', sem fato isotérmico') : ''}.` },
+    ...me.ev.map(([sp, text]) => ({ at: at(sp), sp, text })),
+    { at: c0, sp: 'swim', text: `Sais da água em ${x.pSwim}${x.o} (${pace(me.swim / (x.swimM / 100))}/100 m).` },
+    { at: c1, sp: 'gen', text: `T1 em ${fmt(me.t1)}.` },
+    { at: c2, sp: 'bike', text: `Bike a ${dec(me.spd)} km/h. Chegas à T2 em ${x.pBike}${x.o}.` },
+    { at: c3, sp: 'gen', text: `T2 em ${fmt(me.t2)}.` }
+  ];
+  // O duelo com o rival na corrida, no momento em que se cruzam.
+  const meAheadAtT2 = c3 < rv3, meAheadAtEnd = c4 < rv4, cross = crossing(c3, c4, rv3, rv4);
+  if (meAheadAtT2 !== meAheadAtEnd && cross != null) {
+    lines.push({ at: cross, sp: 'run', text: meAheadAtEnd ? `Passas ${riv.nm}! O teu rival fica para trás.` : `${riv.nm} passa por ti na corrida.` });
+  } else {
+    lines.push({ at: c3 + (c4 - c3) * 0.3, sp: 'run', text: meAheadAtEnd ? `Corres à frente de ${riv.nm}. Não olhes para trás.` : `${riv.nm} vai à tua frente na corrida.` });
+  }
+  lines.push({ at: c4, sp: 'run', text: `Meta! ${x.p}${x.o} da geral ${x.catL}, ${x.agP}${x.o} no escalão.` });
+  return lines.sort((a, b) => a.at - b.at);
 }
 
 /** Sai do ecrã de resultado e passa à semana seguinte. */
