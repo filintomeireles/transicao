@@ -1,5 +1,5 @@
 // Ícones desenhados à mão em SVG (24×24, traço). Herdam a cor do texto: `color` ou `currentColor`.
-import type { SessionKey, Sport } from '../engine';
+import type { Fam, SessionKey } from '../engine';
 
 const P = {
   swim: <><circle cx="16.5" cy="5.5" r="2" /><path d="M5 12.5l4.5-4 3 2.5 3.5-3" /><path d="M2.5 16.5c2 0 2-1.4 4.4-1.4s2.4 1.4 4.6 1.4 2.4-1.4 4.6-1.4 2.4 1.4 4.4 1.4" /><path d="M2.5 20.5c2 0 2-1.4 4.4-1.4s2.4 1.4 4.6 1.4 2.4-1.4 4.6-1.4 2.4 1.4 4.4 1.4" /></>,
@@ -70,12 +70,12 @@ export function Icon({ name, size = 20, stroke = 1.9, className, label }: { name
 }
 
 /** Ícone de cada sessão de treino. */
-export const SESSION_ICON: Record<SessionKey, IconName> = {
-  rest: 'rest', swimTec: 'swim', swimEnd: 'swim', bikeZ2: 'bike', bikeInt: 'bike', runZ2: 'run', runInt: 'run', brick: 'brick', str: 'str'
+export const SESSION_ICON: Record<SessionKey | 'race', IconName> = {
+  rest: 'rest', easy: 'run', long: 'trend', tempo: 'timer', int: 'brick', hills: 'mountain', str: 'str', cross: 'bike', race: 'flag'
 };
 
-export const SPORT_ICON: Record<Sport, IconName> = { swim: 'swim', bike: 'bike', run: 'run', gen: 'str' };
+export const FAM_ICON: Record<Fam, IconName> = { easy: 'run', long: 'trend', fast: 'brick', gen: 'str' };
 
 /** Ícone de cada categoria da loja. */
 export const SHOP_ICON = (cat: string): IconName =>
-  ({ Bike: 'bike', 'Natação': 'swim', Corrida: 'shoe', Tecnologia: 'chip', 'Serviços': 'coach' } as Record<string, IconName>)[cat] ?? 'shop';
+  ({ Sapatilhas: 'shoe', Tecnologia: 'chip', 'Recuperação': 'heart', 'Serviços': 'coach' } as Record<string, IconName>)[cat] ?? 'shop';

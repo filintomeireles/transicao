@@ -65,7 +65,7 @@ export function ClubScreen({ game, flash, setFlash }: { game: GameState; flash: 
             </div>
             <span className="small muted">Pontuação do clube: média do top 10 com {Math.round(C.part * 100)}% de membros ativos. Assim, clubes grandes e pequenos competem.</span>
           </div>
-        ) : <div className="card flat small muted">A classificação aparece quando fechares a primeira semana.</div>
+        ) : <div className="card flat small muted">A classificação aparece quando acabar a primeira semana (domingo à noite).</div>
       ) : (
         <div className="card">
           <Title icon="trophy">Divisão {C.div} · temporada</Title>
@@ -84,7 +84,7 @@ export function ClubScreen({ game, flash, setFlash }: { game: GameState; flash: 
 
       <div className="card acc">
         <Title icon="pin" right={<span className="chip acc">{DAY_NAMES[c.ev.d]}</span>}>{c.ev.t}</Title>
-        <span className="small">{c.ev.where} · {c.ev.sp === 'bike' ? 'um treino de bike' : 'uma corrida'} nesse dia dá +15% nos ganhos, pontos para o clube{pay ? ` e ${pay} € do patrocinador` : ''}.</span>
+        <span className="small">{c.ev.where} · uma corrida nesse dia dá +15% nos ganhos, pontos para o clube{pay ? ` e ${pay} € do patrocinador` : ''}. Ao sábado há os 5 km do clube.</span>
       </div>
 
       <div className="grid2">
@@ -100,19 +100,14 @@ export function ClubScreen({ game, flash, setFlash }: { game: GameState; flash: 
       </div>
 
       <div className="card">
-        <Title icon="flag" right={<span className="chip">semana 14</span>}>Estafeta do clube</Title>
-        <div className="row" style={{ gap: 6 }}>
-          <span className="chip" style={{ color: 'var(--swim)' }}><Icon name="swim" />nadar</span>
-          <span className="chip" style={{ color: 'var(--bike)' }}><Icon name="bike" />pedalar</span>
-          <span className="chip" style={{ color: 'var(--run)' }}><Icon name="run" />correr</span>
-        </div>
-        <span className="small">Equipa de três do clube contra outros clubes da divisão. Escolhes a tua parte e ganhas fama e pontos para o clube.</span>
+        <Title icon="flag" right={<span className="chip">semana 8</span>}>Estafeta do clube</Title>
+        <span className="small">4 × 2 km com três colegas do clube, contra os clubes da divisão. Escolhes se abres (conta a velocidade) ou fechas (conta o limiar e a cabeça). Ganhas fama e pontos para o clube.</span>
       </div>
 
       <h2 style={{ marginTop: 6 }}><Icon name="club" size={18} />Treinar juntos</h2>
       <div className="card">
         <div className="between">
-          <div className="stack"><b>Long run de domingo</b><span className="small muted">Corrida Z2 ao domingo: +15% nos ganhos</span></div>
+          <div className="stack"><b>Long run de domingo</b><span className="small muted">Longão ao domingo: +15% nos ganhos</span></div>
           <div className="row" style={{ gap: 0, flexWrap: 'nowrap', flex: 'none' }}>
             {[game.ath.name, ...friends.map(m => m.nm)].map((nm, i) => <span key={nm} style={{ marginLeft: i ? -10 : 0 }}><Avatar name={nm} size={32} ring="var(--card)" /></span>)}
           </div>
@@ -134,7 +129,7 @@ export function ClubScreen({ game, flash, setFlash }: { game: GameState; flash: 
               ))}
             </>
           );
-        })() : <span className="small muted">Começa quando fechares a primeira semana. Conta bike e corrida em Z2.</span>}
+        })() : <span className="small muted">Começa quando acabar a primeira semana. Contam as rodagens e os longões.</span>}
       </div>
       <div className="card acc">
         <Title icon="gift">Corre comigo</Title>

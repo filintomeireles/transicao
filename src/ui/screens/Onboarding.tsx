@@ -1,24 +1,24 @@
 import { useState } from 'react';
 import {
-  CLUBS, PROFILES, ageGroup, attrsFromActs, createAthlete, overall, readFiles, sampleActs, validateNewAthlete,
+  CLUBS, PROFILES, ageGroup, attrsFromActs, createAthlete, fmt, overall, predict, readFiles, sampleActs, validateNewAthlete,
   type GameState, type ImportSummary, type NewAthlete, type ProfileKey, type StartKind
 } from '../../engine';
 import { Avatar, Seg, Title } from '../components';
 import { Icon, type IconName } from '../icons';
 
-/** Marca do jogo: as três modalidades em três traços. */
+/** Marca do jogo: três traços de velocidade (rodagem, longão, qualidade). */
 export function Logo({ size = 52 }: { size?: number }) {
   return (
     <span className="logo" style={{ width: size, height: size }} aria-hidden="true">
       <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 32 32" fill="none" strokeLinecap="round" strokeWidth="4.2">
-        <path d="M5 9h22" stroke="var(--swim)" /><path d="M16 9v17" stroke="var(--bike)" /><path d="M9 26h14" stroke="var(--run)" />
+        <path d="M6 9h20" stroke="var(--easy)" /><path d="M10 16h16" stroke="var(--long)" /><path d="M14 23h12" stroke="var(--fast)" />
       </svg>
     </span>
   );
 }
 
 export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
-  const [o, setO] = useState<NewAthlete>({ name: '', cat: 'F', age: '', city: '', club: 'pacos', start: 'preset', preset: 'runner' });
+  const [o, setO] = useState<NewAthlete>({ name: '', cat: 'F', age: '', city: '', club: 'pacos', start: 'preset', preset: 'regular' });
   const [imp, setImp] = useState<ImportSummary | null>(null);
   const [err, setErr] = useState<ReturnType<typeof validateNewAthlete>>({});
   const set = <K extends keyof NewAthlete>(k: K, v: NewAthlete[K]) => { setO(p => ({ ...p, [k]: v })); setErr(e => ({ ...e, [k]: undefined })); };
@@ -27,7 +27,7 @@ export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
   async function onFiles(files: FileList | null) {
     if (!files?.length) return;
     const { acts, errs } = await readFiles(Array.from(files));
-    setImp(acts.length ? { ...attrsFromActs(acts), errs } : { a: PROFILES.runner.a, ctl: 0, fatigue: 0, n: 0, sports: { run: 0, bike: 0, swim: 0 }, errs: errs.length ? errs : ['Nenhuma corrida, bike ou natação encontrada.'] });
+    setImp(acts.length ? { ...attrsFromActs(acts), errs } : { a: PROFILES.regular.a, ctl: 0, fatigue: 0, n: 0, sports: { run: 0, other: 0 }, errs: errs.length ? errs : ['Nenhuma corrida encontrada.'] });
     setErr(e => ({ ...e, files: undefined }));
   }
 
@@ -51,7 +51,7 @@ export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
     <>
       <div className="brand">
         <Logo />
-        <div className="stack"><h1>Transição</h1><span className="small muted">A carreira de triatlo em que o atleta és tu.</span></div>
+        <div className="stack"><h1>Transição</h1><span className="small muted">A carreira de corredor em que o atleta és tu: um treino por dia, ao ritmo do calendário.</span></div>
       </div>
       <div className="card">
       <div className="row" style={{ flexWrap: 'nowrap', gap: 12 }}>
@@ -96,8 +96,8 @@ export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
           </div>
           {imp && imp.n > 0 ? (
             <>
-              <div className="small">{imp.sample ? 'Exemplo: ' : ''}{imp.n} treinos lidos ({imp.sports.run} corridas, {imp.sports.bike} bikes, {imp.sports.swim} natações). Nota geral prevista: <b>{overall(imp.a)}</b>.</div>
-              <div className="small muted">Natação {imp.a.swimTec}/{imp.a.swimEnd} · Bike {imp.a.bikePow}/{imp.a.bikeEnd} · Corrida {imp.a.runSpd}/{imp.a.runEnd}</div>
+              <div className="small">{imp.sample ? 'Exemplo: ' : ''}{imp.n} treinos lidos ({imp.sports.run} corridas, {imp.sports.other} outros). Nota geral prevista: <b>{overall(imp.a)}</b>.</div>
+              <div className="small muted">5 km previsto {fmt(predict(imp.a, '5k'))} · 10 km {fmt(predict(imp.a, '10k'))} · meia {fmt(predict(imp.a, 'meia'))}</div>
             </>
           ) : (
             <div className="small muted">Exporta as últimas semanas do teu relógio ou da tua app. Quanto mais treinos, melhor a calibração.</div>
@@ -106,13 +106,13 @@ export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
           {err.files && <span className="err">{err.files}</span>}
         </div>
       )}
-      {startOpt('preset', 'Perfil pronto', 'Corredor, ciclista ou ex-nadador', 'user')}
+      {startOpt('preset', 'Perfil pronto', 'Escolhe o teu nível de corredor', 'user')}
       {o.start === 'preset' && (
         <select id="ob-preset" aria-label="Perfil pronto" value={o.preset} onChange={e => set('preset', e.target.value as ProfileKey)}>
-          {(Object.entries(PROFILES) as [ProfileKey, { n: string }][]).map(([k, p]) => <option key={k} value={k}>{p.n}</option>)}
+          {(Object.entries(PROFILES) as [ProfileKey, { n: string; d: string }][]).map(([k, p]) => <option key={k} value={k}>{p.n} · {p.d}</option>)}
         </select>
       )}
-      {startOpt('filinto', 'Exemplo: dados do Filinto', 'Atleta calibrado com 3 meses de Strava (ago–nov 2026)', 'star')}
+      {startOpt('filinto', 'Exemplo: dados do Filinto', 'Calibrado com os recordes reais de 2026: 5 km em 19:11, maratona em 3:33', 'star')}
 
       <div className="cta" style={{ bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}><button className="btn primary" onClick={create}>Criar atleta<Icon name="chevron" /></button></div>
     </>

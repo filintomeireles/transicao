@@ -1,6 +1,6 @@
 # Transição
 
-Jogo mobile de carreira de triatlo em que o atleta és tu: os teus treinos reais fazem evoluir o personagem.
+Jogo mobile de carreira de corrida (o triatlo vem depois) em que o atleta és tu: os teus treinos reais fazem evoluir o personagem, um dia de cada vez.
 O documento de design está em Claude Docs ("Transição — documento de design").
 
 ## Correr
@@ -14,8 +14,8 @@ npm run build      # versão de produção em dist/
 ```
 
 Só em desenvolvimento (`npm run dev`), há um modo de demonstração para ver os ecrãs com dados:
-`?demo=30` cria uma carreira com 30 semanas jogadas, `&tab=atleta` abre esse separador,
-`&prova=resultado` mostra o resultado da prova da semana e `&tema=escuro` força o tema escuro.
+`?demo=30` cria uma carreira com 30 dias jogados, `&tab=atleta` abre esse separador,
+`&prova=1` prepara uma prova, `&prova=live` começa-a, `&prova=resultado` mostra um resultado e `&tema=escuro` força o tema escuro.
 Não entra na versão publicada.
 
 ## Interface
@@ -28,8 +28,12 @@ pede nova validação.
 
 ## Ritmo do jogo
 
-Cada dia real dá 2 semanas de jogo, que se acumulam até 7 (`BAL.pacePerDay`, `BAL.paceCap` em
-`src/engine/balance.ts`). Para testes internos sem limite, abre o jogo com `?ritmo=livre` no endereço.
+Desde a versão de corrida, um dia de jogo é um dia real: cada dia tem um treino, que se faz
+importando o ficheiro do relógio (vale mais), confirmando que se treinou, ou simulando. Os dias em que
+não se abre o jogo correm em piloto automático (rende pouco) e, ao fim de 10 dias, o atleta para.
+Para testes internos, `?ritmo=livre` mostra um botão para avançar para o dia seguinte.
+
+A versão de triatlo com semanas está guardada na etiqueta `triatlo-semanal-v1`.
 
 ## Testadores (versão web)
 

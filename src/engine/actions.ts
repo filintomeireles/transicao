@@ -1,8 +1,8 @@
 // Ações do jogador. Todas alteram o estado recebido e, quando faz sentido, devolvem uma mensagem.
-import { CALENDAR, CAMPS, EVENTS, GELS, PRESETS, SHOP, SPONSORS } from './data';
+import { CALENDAR, CAMPS, EVENTS, PRESETS, SHOP, SPONSORS, TALENTS, type PresetName } from './data';
 import { clamp, eur } from './format';
-import type { GameState, RaceChoices, SessionKey } from './types';
-import { entries, price, weekInSeason } from './world';
+import type { GameState, SessionKey } from './types';
+import { entries, hasRun, price, raceDay, talentPoints } from './world';
 
 export function resolveEvent(s: GameState, msgIndex: number, option: number): void {
   const m = s.inbox[msgIndex];
@@ -42,9 +42,11 @@ export function buy(s: GameState, id: string): string {
   if (s.money < pr) return `Faltam ${eur(pr - s.money)} para ${it.n.toLowerCase()}.`;
   if (it.sub) { if (s.subs[id]) return ''; s.subs[id] = true; s.money -= pr; return `Subscreveste: ${it.n.toLowerCase()}.`; }
   if (!it.once && s.owned[id]) return '';
+  if (id === 'physio' && !s.injury) return 'Não estás lesionado.';
   s.money -= pr;
   if (id === 'shoes') { s.shoeKm = 0; s.shoeWarned = false; }
   else if (id === 'massage') s.fatigue = clamp(s.fatigue - 15, 0, 100);
+  else if (id === 'physio') s.injury = Math.max(0, s.injury - 4);
   else s.owned[id] = true;
   return `Compraste: ${it.n.toLowerCase()}.`;
 }
@@ -52,42 +54,31 @@ export function buy(s: GameState, id: string): string {
 export const cancelSubscription = (s: GameState, id: string): void => { s.subs[id] = false; };
 export const quitJob = (s: GameState): void => { s.job = false; };
 export const returnToJob = (s: GameState): void => { s.job = true; };
+/** Muda o treino de um dia no modelo da semana (fica para as semanas seguintes). */
 export const setDay = (s: GameState, day: number, k: SessionKey): void => { s.plan[day] = k; };
-export const applyPreset = (s: GameState, name: keyof typeof PRESETS): void => { s.plan = PRESETS[name].slice(); };
-export const removeReal = (s: GameState, day: number): void => { s.real[day] = []; };
-/** Marca (ou desmarca) o treino real mais longo desse dia como prova real. */
-export function toggleRealRace(s: GameState, day: number): void {
-  const list = s.real[day];
-  if (!list?.length) return;
-  const longest = list.reduce((a, b) => (b.min > a.min ? b : a));
-  longest.race = !longest.race;
-}
+export const applyPreset = (s: GameState, name: PresetName): void => { s.plan = PRESETS[name].slice(); };
 
-export function setRaceChoice<K extends keyof RaceChoices>(s: GameState, key: K, value: RaceChoices[K]): void {
-  if (s.race?.stage === 'setup') s.race.ch[key] = value;
-}
-export function changeGels(s: GameState, delta: number): void {
-  if (s.race?.stage === 'setup') s.race.ch.gels = clamp(s.race.ch.gels + delta, 0, 16);
-}
-export const recommendedGels = (s: GameState): number | null => (s.race ? GELS[s.race.t] : null);
-
-/** Inscreve ou desinscreve numa prova. Só uma prova por semana; provas passadas ou desta semana com a prova já em curso não mudam. */
+/** Inscreve ou desinscreve numa prova futura desta temporada. */
 export function toggleEntry(s: GameState, id: string): void {
   const r = CALENDAR.find(x => x.id === id);
-  if (!r || r.w < weekInSeason(s) || (s.race && r.w === weekInSeason(s))) return;
+  if (!r || raceDay(s, r) <= s.today || hasRun(s, r)) return;
   const list = entries(s);
-  s.entries = list.includes(id)
-    ? list.filter(x => x !== id)
-    : [...list.filter(x => CALENDAR.find(c => c.id === x)?.w !== r.w), id];
+  s.entries = list.includes(id) ? list.filter(x => x !== id) : [...list.filter(x => CALENDAR.find(c => c.id === x)?.w !== r.w), id];
 }
 
-/** Marca um estágio a começar já nesta semana. Devolve a mensagem para o jogador. */
+/** Marca um estágio a começar hoje. Devolve a mensagem para o jogador. */
 export function bookCamp(s: GameState, id: string): string {
   const c = CAMPS.find(x => x.id === id);
   if (!c) return '';
   if (s.camp) return 'Já estás num estágio.';
   if (s.money < c.cost) return `Faltam ${eur(c.cost - s.money)} para ${c.n.toLowerCase()}.`;
   s.money -= c.cost;
-  s.camp = { id, left: c.weeks };
-  return `Estágio marcado: ${c.n}, ${c.weeks} semana${c.weeks > 1 ? 's' : ''} a partir desta.`;
+  s.camp = { id, left: c.days };
+  return `Estágio marcado: ${c.n}, ${c.days} dias a partir de hoje.`;
+}
+
+/** Escolhe um talento com um ponto de nível. */
+export function pickTalent(s: GameState, id: string): void {
+  if (talentPoints(s) <= 0 || s.talents.includes(id) || !TALENTS.some(t => t.id === id)) return;
+  s.talents = [...s.talents, id];
 }

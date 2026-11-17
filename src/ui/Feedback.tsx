@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ageGroup, overall, season, weekInSeason, type GameState } from '../engine';
+import { ageGroup, level, overall, season, weekInSeason, type GameState } from '../engine';
 import type { Apply } from './useGame';
 
 const START_NAME = { files: 'ficheiros reais', preset: 'perfil pronto', filinto: 'exemplo do Filinto' } as const;
@@ -51,7 +51,7 @@ export function FeedbackForm({ game, moment, onSent, onClose }: { game: GameStat
       bored.trim() && `O que me aborreceu ou confundiu: ${bored.trim()}`,
       change.trim() && `O que mudava: ${change.trim()}`,
       name.trim() && `Nome: ${name.trim()}`,
-      `— ${moment} · temporada ${season(game)}, semana ${weekInSeason(game)} · nota do atleta ${overall(game.a)} · ${game.results.length} provas · ${game.ath.cat} ${ageGroup(game.ath.age)} · início: ${START_NAME[game.ath.start]}`
+      `— ${moment} · versão corrida diária · temporada ${season(game)}, semana ${weekInSeason(game)}, dia ${game.today - game.born + 1} · nota ${overall(game.a)} · nível ${level(game.xp)} · ${game.days.filter(d => d.how === 'real').length} treinos reais · ${game.results.length} provas · ${game.ath.cat} ${ageGroup(game.ath.age)} · início: ${START_NAME[game.ath.start]}`
     ].filter(Boolean);
     setText(lines.join('\n'));
     onSent?.();

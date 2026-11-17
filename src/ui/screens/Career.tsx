@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  CALENDAR, COURSE_NAME, DIST, SPONSORS, canEnter, eur, fmt, isEntered, raceName, season, toggleEntry, weekInSeason, whyNot,
+  CALENDAR, COURSE_NAME, DIST, SPONSORS, canEnter, dateLabel, eur, fmt, hasRun, isEntered, raceDay, raceName, season, toggleEntry, weekInSeason, whyNot,
   type GameState, type RaceTier
 } from '../../engine';
 import { SeasonStrip } from '../charts';
@@ -10,13 +10,13 @@ import { buzz } from '../fx';
 import { Icon } from '../icons';
 import type { Apply } from '../useGame';
 
-const TIER: Record<RaceTier, string> = { regional: 'regional', nacional: 'nacional', internacional: 'internacional', pro: 'circuito pro', mundial: 'mundial' };
+const TIER: Record<RaceTier, string> = { clube: 'clube', regional: 'regional', nacional: 'nacional', internacional: 'internacional', pro: 'circuito pro', mundial: 'mundial' };
 
 export function CareerScreen({ game, apply }: { game: GameState; apply: Apply }) {
   const wk = weekInSeason(game), se = season(game);
   const [feedback, setFeedback] = useState(false);
   const podiums = game.results.filter(r => r.p <= 3).length, agWins = game.results.filter(r => r.agP === 1).length;
-  const upcoming = CALENDAR.filter(r => r.w >= wk && isEntered(game, r.id));
+  const upcoming = CALENDAR.filter(r => raceDay(game, r) >= game.today && !hasRun(game, r) && isEntered(game, r.id));
   const cost = upcoming.reduce((sum, r) => sum + r.fee + r.travel, 0);
   const titles = game.titles ?? [];
   return (
@@ -38,17 +38,18 @@ export function CareerScreen({ game, apply }: { game: GameState; apply: Apply })
             <span className="tile sp-gold"><Icon name="trophy" /></span><b>{t}</b>
           </div>
         ))}
-        {!titles.length && <span className="small muted">O grande objetivo: o Mundial de Longa Distância, na semana 20. Para lá chegar precisas de vaga, ganha na Meia distância do Algarve ou na Longa distância de Vitória.</span>}
+        {!titles.length && <span className="small muted">O grande objetivo: o Mundial de Maratona, no último domingo da temporada (semana 12). Para lá chegar precisas de vaga: ganha o escalão na Maratona de Vitória ou na Meia maratona do Algarve.</span>}
       </div>
 
       <div className="card">
         <Title icon="week" right={<span className="small muted">{upcoming.length} inscrições · {eur(cost)}</span>}>Temporada {se}</Title>
         <SeasonStrip week={wk} races={CALENDAR.map(r => ({ w: r.w, label: r.n, big: r.tier === 'mundial', entered: isEntered(game, r.id) }))} />
-        <span className="small muted">Escolhe as provas: uma por semana. Inscrição e viagem pagam-se na semana da prova.</span>
+        <span className="small muted">Todos os sábados há também os 5 km do clube, sem inscrição.</span>
+        <span className="small muted">Escolhe as provas: uma por domingo. Inscrição e viagem pagam-se no dia.</span>
         {CALENDAR.map(r => {
           const res = game.results.find(x => x.id === r.id && x.season === se), L = game.legends[r.id], D = DIST[r.t];
           const entered = isEntered(game, r.id), blocked = whyNot(game, r);
-          const past = r.w < wk || !!res || (r.w === wk && !!game.race);
+          const past = raceDay(game, r) < game.today || hasRun(game, r) || (raceDay(game, r) === game.today && !!game.race);
           const big = r.tier === 'mundial' || r.tier === 'pro';
           return (
             <div key={r.id} className="item ic-row" style={{ opacity: past && !res ? 0.55 : 1 }}>
@@ -56,7 +57,7 @@ export function CareerScreen({ game, apply }: { game: GameState; apply: Apply })
               <div className="stack">
                 <span className="row" style={{ gap: 6 }}><span className="lbl">Sem. {r.w}</span><span className={`chip${big ? ' gold' : ''}`}>{TIER[r.tier]}</span></span>
                 <b>{r.n}</b>
-                <span className="small muted">{D.l} · {COURSE_NAME[r.course]} · ar ~{r.air}°{r.windy >= 20 ? ' · ventoso' : ''} · água {r.temp}° · {eur(r.fee + r.travel)}{r.prizeMult ? ` · prémios ×${r.prizeMult}` : ''}</span>
+                <span className="small muted">{D.l} · {COURSE_NAME[r.course]} · ar ~{r.air}°{r.windy >= 20 ? ' · ventoso' : ''} · {eur(r.fee + r.travel)} · domingo {dateLabel(raceDay(game, r))}{r.prizeMult ? ` · prémios ×${r.prizeMult}` : ''}</span>
                 {r.slotTo && <span className="small acc-t">Vaga para {raceName(r.slotTo)}: top {r.slot} do escalão{game.slots[r.slotTo] ? ' · já tens vaga' : ''}</span>}
                 {blocked && !res && !past && <span className="small bad-t"><Icon name="lock" size={13} /> {blocked}</span>}
                 {L && <span className="small muted">Lenda local: {L.nm === game.ath.name ? <b>tu</b> : L.nm} ({L.count} participações)</span>}
@@ -105,7 +106,7 @@ export function CareerScreen({ game, apply }: { game: GameState; apply: Apply })
             {game.results.slice().reverse().map((r, i) => (
               <div key={i} className="it">
                 <span className="n">{r.p <= 3 ? <span className={`medal m${r.p}`}>{r.p}</span> : `${r.p}º`}</span>
-                <span className="who"><span>{r.n}</span><span className="small muted">{r.agP}º {r.ag} · T{r.season}</span></span>
+                <span className="who"><span>{r.n}</span><span className="small muted">{r.agP}º {r.ag} · T{r.season}{r.pb ? ' · recorde' : ''}</span></span>
                 <span className="t">{fmt(r.total)}</span>
               </div>
             ))}

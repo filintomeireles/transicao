@@ -1,4 +1,4 @@
-import { nextRace, season, weekInSeason, type GameState } from '../engine';
+import type { GameState } from '../engine';
 import { Icon } from './icons';
 import type { Apply } from './useGame';
 
@@ -7,18 +7,16 @@ interface Step { id: string; title: string; text: string; when: (s: GameState, w
 
 // Guia da primeira semana: um cartão de cada vez, no ecrã onde faz sentido.
 const STEPS: Step[] = [
-  { id: 'semana', title: 'A tua semana', text: 'Cada cartão é um dia. Toca num dia para escolher o treino, ou usa um modelo pronto. Os treinos duros dão mais ganhos, mas cansam mais.',
-    when: (s, w) => w === 'week' && s.week === 1 },
+  { id: 'dia', title: 'Um treino por dia', text: 'O jogo anda ao ritmo do calendário: cada dia real tem um treino. Se treinaste com relógio, importa o ficheiro; se treinaste sem ele, confirma; se não deu, simula. O treino real vale mais e dá o dobro dos pontos.',
+    when: (s, w) => w === 'week' && s.today === s.born },
   { id: 'medidores', title: 'Fadiga, forma e moral', text: 'A fadiga sobe com o treino e desce com o descanso. A forma é o que conta na prova: sobe quando alivias depois de semanas de treino. A moral mexe nos ganhos.',
-    when: (s, w) => w === 'week' && s.week === 1 },
-  { id: 'fechar', title: 'Fecha a semana', text: 'Quando o plano estiver pronto, carrega em "Fechar semana". Em baixo vês o resumo do que ganhaste. O treinador avisa-te se estiveres a exagerar.',
-    when: (s, w) => w === 'week' && s.week === 1 },
-  { id: 'taper', title: 'Prova à vista', text: 'Na semana da prova, alivia: usa o modelo Taper ou troca as sessões duras por leves. Chegas com menos fadiga e mais forma.',
-    when: (s, w) => { const r = nextRace(s); return w === 'week' && !s.results.length && !!r && r.w - weekInSeason(s) <= 1; } },
-  { id: 'prova', title: 'Decisões da prova', text: 'Escolhe onde partes na natação, a intensidade na bike, os géis e a estratégia de corrida. Durante a prova tens dois momentos só teus: as transições e, se chegares colado a alguém, o sprint final.',
+    when: (s, w) => w === 'week' && s.today === s.born && !!s.guide?.includes('dia') },
+  { id: 'ausente', title: 'Se faltares', text: 'Os dias em que não abres o jogo correm em piloto automático: o atleta faz o plano, mas rende menos de metade. Ao fim de 10 dias, para.',
+    when: (s, w) => w === 'week' && s.done && s.today === s.born },
+  { id: 'prova', title: 'A prova joga-se', text: 'Antes de cada segmento escolhes o esforço. Atacar ganha tempo mas gasta energia; se a energia acabar, bates na parede. Colar a quem vai à frente poupa nos troços com vento.',
     when: (s, w) => w === 'race' && s.race?.stage === 'setup' && !s.results.length },
-  { id: 'depois', title: 'Depois da prova', text: 'Cada prova dá pontos de ranking e fama. Com fama chegam patrocinadores à caixa de entrada. Vê também o teu clube e a loja nos separadores em baixo.',
-    when: (s, w) => w === 'week' && s.results.length > 0 && season(s) === 1 }
+  { id: 'talentos', title: 'Níveis e talentos', text: 'Os pontos de treino fazem-te subir de nível. Cada nível dá um talento: escolhe-o na ficha do atleta.',
+    when: (s, w) => w === 'week' && s.talents.length === 0 && s.xp >= 120 }
 ];
 
 export function GuideCard({ game, where, apply }: { game: GameState; where: Where; apply: Apply }) {

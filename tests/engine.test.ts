@@ -1,357 +1,234 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  BAL, CALENDAR, NEUTRAL_SCORE, PROFILES, addRealActivities, applySprint, applyTransition, buy, coachTips, createAthlete,
-  canEnter, finishLiveRace, finishRace, overall, form, isEntered, processWeek, resolveEvent, runRace, setSeed, sprintOpponent, startRace,
-  takeWeek, toggleEntry, toggleRealRace, weekInSeason, weeksAvailable, whyNot, simRace, bookCamp, CAMPS, rivalAfterRace,
-  type GameState, type NewAthlete
+  BAL, CALENDAR, CLUB_RACE, DIST, PROFILES, addRealActivities, autoRace, coachTips, createAthlete, doToday, dow, enterRace, finishLiveRace,
+  finishRace, level, overall, paceOptions, pickTalent, plannedToday, predict, raceDay, raceOffer, restToday, runSegment, setSeed, skipDay,
+  startRace, syncToday, talentPoints, takeGel, toggleEntry, weekInSeason, season, xpForLevel,
+  type Activity, type GameState, type NewAthlete
 } from '../src/engine';
 
-const base: NewAthlete = { name: 'Teste', cat: 'M', age: '38', city: 'Porto', club: 'pacos', start: 'preset', preset: 'runner' };
-const newGame = (o: Partial<NewAthlete> = {}): GameState => createAthlete({ ...base, ...o }, null);
+const MONDAY = 20591; // segunda-feira, 2026-05-18
+const base: NewAthlete = { name: 'Teste', cat: 'M', age: '38', city: 'Porto', club: 'pacos', start: 'preset', preset: 'regular' };
+const newGame = (o: Partial<NewAthlete> = {}, day = MONDAY): GameState => createAthlete({ ...base, ...o }, null, day);
+const noon = (day: number) => day * 864e5 + 12 * 3600e3 + new Date(day * 864e5).getTimezoneOffset() * 6e4;
 
 beforeEach(() => setSeed(42));
 
-describe('criar atleta', () => {
-  it('usa o perfil pronto e o escalão da idade', () => {
-    const s = newGame();
-    expect(s.a.runSpd).toBe(PROFILES.runner.a.runSpd);
-    expect(s.ath.age).toBe(38);
-    expect(s.real).toHaveLength(7);
+describe('calendário real', () => {
+  it('a carreira começa no dia de hoje e a semana numa segunda-feira', () => {
+    const s = newGame({}, MONDAY + 2);
+    expect(dow(MONDAY)).toBe(0);
+    expect(s.start).toBe(MONDAY);
+    expect(s.today).toBe(MONDAY + 2);
+    expect(weekInSeason(s)).toBe(1);
   });
 
-  it('na categoria feminina os perfis prontos correm com ritmos femininos', () => {
-    const f = newGame({ cat: 'F' });
-    expect(f.a.runSpd).toBe(PROFILES.runner.a.runSpd - BAL.fOffset);
-    expect(f.a.mental).toBe(PROFILES.runner.a.mental);
+  it('só se joga um dia por dia real: o mesmo dia não avança', () => {
+    const s = newGame();
+    doToday(s, 'sim');
+    expect(syncToday(s, MONDAY)).toBe(0);
+    expect(s.today).toBe(MONDAY);
+    expect(doToday(s, 'sim')).toBeNull();
+  });
+
+  it('os dias em falta correm em piloto automático e param ao fim de 10', () => {
+    const s = newGame();
+    doToday(s, 'manual');
+    syncToday(s, MONDAY + 15);
+    expect(s.today).toBe(MONDAY + 15);
+    const missed = s.days.slice(1);
+    expect(missed.filter(d => d.how === 'auto').length).toBeLessThanOrEqual(BAL.autoMax);
+    expect(missed.some(d => d.how === 'miss')).toBe(true);
+    expect(s.streak).toBe(0);
+    expect(s.inbox[0].t).toMatch(/dias fora/);
+  });
+
+  it('não jogar faz perder forma; treinar faz ganhar', () => {
+    const idle = newGame(), busy = newGame();
+    for (let i = 0; i < 42; i++) { doToday(busy, 'manual'); skipDay(busy); skipDay(idle); }
+    expect(overall(busy.a)).toBeGreaterThan(overall(idle.a));
+    expect(predict(idle.a, '5k')).toBeGreaterThan(predict(newGame().a, '5k'));
   });
 });
 
-describe('semana', () => {
-  it('avança a semana e paga salário e custo de vida', () => {
+describe('treino do dia', () => {
+  it('um treino real rende mais do que um confirmado, e este mais do que um simulado', () => {
+    const k = 'int' as const;
+    const gain = (how: 'manual' | 'sim' | 'real') => {
+      setSeed(1);
+      const s = newGame();
+      s.plan[0] = k;
+      const before = s.a.spd;
+      if (how === 'real') addRealActivities(s, [{ sport: 'run', start: noon(MONDAY), sec: 3000, km: 9.5, hr: 170 }]);
+      else doToday(s, how);
+      return { g: s.a.spd - before, xp: s.xp };
+    };
+    const real = gain('real'), manual = gain('manual'), sim = gain('sim');
+    expect(real.g).toBeGreaterThan(manual.g);
+    expect(manual.g).toBeGreaterThan(sim.g);
+    expect(real.xp).toBeGreaterThan(manual.xp);
+    expect(manual.xp).toBeGreaterThan(sim.xp);
+  });
+
+  it('um treino real de ontem substitui o piloto automático', () => {
     const s = newGame();
+    doToday(s, 'manual');
+    syncToday(s, MONDAY + 2); // terça em piloto automático
+    expect(s.days.find(d => d.d === MONDAY + 1)?.how).toBe('auto');
+    const xp = s.xp;
+    const msg = addRealActivities(s, [{ sport: 'run', start: noon(MONDAY + 1), sec: 3600, km: 11, hr: 140 }]);
+    expect(msg).toMatch(/terça/);
+    expect(s.days.find(d => d.d === MONDAY + 1)?.how).toBe('real');
+    expect(s.xp).toBeGreaterThan(xp);
+    // a mesma atividade não conta duas vezes
+    expect(addRealActivities(s, [{ sport: 'run', start: noon(MONDAY + 1), sec: 3600, km: 11, hr: 140 }])).toMatch(/Nenhum/);
+  });
+
+  it('confirmar e depois importar o mesmo treino passa a contar como real', () => {
+    const s = newGame();
+    s.plan[0] = 'easy';
+    doToday(s, 'manual');
+    const g = s.a.end;
+    addRealActivities(s, [{ sport: 'run', start: noon(MONDAY), sec: 2700, km: 8, hr: 140 }]);
+    expect(s.last!.how).toBe('real');
+    expect(s.a.end).toBeGreaterThan(g);
+  });
+
+  it('atividades com mais de 7 dias ficam de fora', () => {
+    const s = newGame();
+    expect(addRealActivities(s, [{ sport: 'run', start: noon(MONDAY - 9), sec: 3000, km: 9, hr: 150 }])).toMatch(/mais de 7 dias/);
+  });
+
+  it('lesionado, a corrida passa a treino cruzado', () => {
+    const s = newGame();
+    s.injury = 5; s.plan[0] = 'int';
+    expect(plannedToday(s)).toBe('cross');
+    expect(coachTips(s)[0].text).toMatch(/treino cruzado/);
+  });
+
+  it('cinco treinos teus numa semana cumprem o objetivo', () => {
+    const s = newGame();
+    s.plan = ['easy', 'easy', 'easy', 'easy', 'easy', 'rest', 'rest'];
     const money = s.money;
-    processWeek(s);
-    expect(s.week).toBe(2);
-    // a semana típica tem corrida à terça, o dia do clube: o patrocinador do clube paga
-    const clubPay = BAL.clubPay[s.club.div];
-    expect(s.last?.fin).toBe(BAL.salary - BAL.living + clubPay);
-    expect(s.money).toBeLessThanOrEqual(money + BAL.salary - BAL.living + clubPay);
+    for (let i = 0; i < 5; i++) { doToday(s, 'sim'); skipDay(s); }
+    expect(s.wk.mine).toBe(5);
+    expect(s.money).toBeGreaterThanOrEqual(money + BAL.weekGoalMoney);
   });
 
-  it('o taper aumenta a forma', () => {
-    const s = newGame();
-    for (let i = 0; i < 4; i++) { s.plan = ['swimEnd', 'runInt', 'bikeInt', 'swimTec', 'runZ2', 'brick', 'bikeZ2']; s.race = null; processWeek(s); s.race = null; }
-    const before = form(s);
-    s.plan = ['swimTec', 'runZ2', 'rest', 'swimTec', 'bikeZ2', 'rest', 'rest'];
-    processWeek(s);
-    expect(form(s)).toBeGreaterThan(before);
-  });
-
-  it('os treinos reais entram no dia em que aconteceram', () => {
-    const s = newGame();
-    const tuesday = Date.parse('2026-11-10T07:00:00');
-    const msg = addRealActivities(s, [{ sport: 'run', start: tuesday, sec: 3600, km: 10, hr: 140 }]);
-    expect(msg).toContain('1 treino');
-    expect(s.real[1]).toHaveLength(1);
-    expect(s.real[1][0].k).toBe('runZ2');
-    expect(addRealActivities(s, [{ sport: 'run', start: tuesday, sec: 3600, km: 10, hr: 140 }])).toContain('Nenhum');
+  it('descansar baixa a fadiga mais do que treinar', () => {
+    const a = newGame(), b = newGame();
+    restToday(a); skipDay(a);
+    b.plan[0] = 'long'; doToday(b, 'sim'); skipDay(b);
+    expect(a.fatigue).toBeLessThan(b.fatigue);
   });
 });
 
-describe('recompensas do treino real e do clube', () => {
-  const run = (day: number, min = 60) => ({ sport: 'run' as const, start: Date.parse('2026-11-09T07:00:00') + day * 864e5, sec: min * 60, km: min / 6, hr: 140 });
-
-  it('três semanas seguidas com 3 treinos reais fazem uma série e dão fama', () => {
+describe('níveis e talentos', () => {
+  it('cada nível dá um ponto de talento', () => {
     const s = newGame();
-    for (let w = 0; w < 3; w++) {
-      addRealActivities(s, [run(0 + w * 7), run(2 + w * 7), run(4 + w * 7)]);
-      s.race = null;
-      const fame = s.fame;
-      processWeek(s);
-      s.race = null;
-      expect(s.realStreak).toBe(w + 1);
-      if (w > 0) expect(s.fame).toBeGreaterThan(fame * BAL.fameKeep);
-    }
-    expect(s.last?.bonuses?.some(b => b.startsWith('Série real: 3 semanas'))).toBe(true);
-    processWeek(s);
-    expect(s.realStreak).toBe(0);
-  });
-
-  it('só os primeiros treinos reais da semana têm bónus', () => {
-    const s = newGame();
-    addRealActivities(s, [0, 1, 2, 3, 4, 5].map(d => run(d)));
-    processWeek(s);
-    expect(s.last?.bonuses).toContain(`${BAL.realBonusCap} treinos reais com +${Math.round((BAL.realBonus - 1) * 100)}%`);
-  });
-
-  it('uma prova real marcada dá fama e uma conquista', () => {
-    const s = newGame();
-    addRealActivities(s, [run(5, 100)]);
-    toggleRealRace(s, 5);
-    const fame = s.fame;
-    processWeek(s);
-    expect(s.fame).toBeGreaterThan(fame);
-    expect(s.inbox.some(m => m.t.startsWith('Prova real'))).toBe(true);
-  });
-
-  it('a estafeta do clube aparece na semana 14 e dá fama', () => {
-    const s = newGame();
-    while (weekInSeason(s) < 14) { processWeek(s); if (s.race) { runRace(s); finishRace(s); } }
-    const i = s.inbox.findIndex(m => m.id === 'estafeta');
-    expect(i).toBeGreaterThanOrEqual(0);
-    const fame = s.fame;
-    resolveEvent(s, i, 2);
-    expect(s.fame).toBeGreaterThan(fame);
-    expect(s.inbox[i].res).toContain('Fizeste a corrida');
+    expect(level(0)).toBe(1);
+    s.xp = xpForLevel(3);
+    expect(level(s.xp)).toBe(3);
+    expect(talentPoints(s)).toBe(2);
+    pickTalent(s, 'pesleves');
+    pickTalent(s, 'pesleves');
+    expect(s.talents).toEqual(['pesleves']);
+    expect(talentPoints(s)).toBe(1);
   });
 });
 
-describe('prova', () => {
-  it('cobra inscrição e viagem, corre o pelotão da categoria e avança', () => {
-    const s = newGame({ cat: 'F' });
-    processWeek(s); processWeek(s);
-    expect(weekInSeason(s)).toBe(3);
-    const race = CALENDAR[0];
-    const before = s.money;
-    processWeek(s);
-    expect(s.race?.stage).toBe('setup');
-    expect(s.money).toBeLessThan(before - race.fee - race.travel + BAL.salary);
-    runRace(s);
-    const res = s.race!.res!;
-    expect(res.N).toBe(race.nF);
-    expect(res.p).toBeGreaterThanOrEqual(1);
-    expect(res.p).toBeLessThanOrEqual(res.N);
-    expect(res.lists.escalao.every(r => r.ag === res.ag)).toBe(true);
-    expect(s.results).toHaveLength(1);
-    finishRace(s);
-    expect(s.race).toBeNull();
-    expect(weekInSeason(s)).toBe(4);
-  });
-
-  it('guarda os tempos de passagem de todo o pelotão e um relato ordenado', () => {
+describe('provas', () => {
+  it('ao sábado há os 5 km do clube; no domingo da semana 2 a primeira prova de calendário', () => {
     const s = newGame();
-    for (let i = 0; i < 3; i++) processWeek(s);
-    runRace(s);
-    const res = s.race!.res!;
-    expect(res.trace).toHaveLength(res.N);
-    for (const r of res.trace) for (let i = 1; i < 5; i++) expect(r.cum[i]).toBeGreaterThanOrEqual(r.cum[i - 1]);
-    const me = res.trace.find(r => r.me)!;
-    expect(me.cum[4]).toBeCloseTo(res.me.total, 0);
-    expect(res.trace.filter(r => r.cum[4] < me.cum[4])).toHaveLength(res.p - 1);
-    const ats = res.timeline.map(l => l.at);
-    expect(ats).toEqual([...ats].sort((a, b) => a - b));
-    expect(res.timeline.at(-1)!.text).toContain('Meta!');
-    expect(res.timeline.at(-1)!.at).toBeCloseTo(me.cum[4], 0);
+    for (let i = 0; i < 5; i++) { doToday(s, 'sim'); skipDay(s); }
+    expect(raceOffer(s)?.id).toBe(CLUB_RACE.id);
+    const povoa = CALENDAR.find(r => r.id === 'povoa')!;
+    expect(raceDay(s, povoa)).toBe(MONDAY + 13);
   });
 
-  it('é reproduzível com a mesma semente', () => {
-    const run = () => { setSeed(7); const s = newGame(); for (let i = 0; i < 3; i++) processWeek(s); runRace(s); return s.race!.res!.me.total; };
-    expect(run()).toBe(run());
-  });
-});
-
-describe('prova interativa', () => {
-  const toRace = () => { const s = newGame(); for (let i = 0; i < 3; i++) processWeek(s); startRace(s); return s; };
-  const myTotal = (s: GameState) => { const me = s.race!.live!.field.find(f => f.me)!; return me.swim + me.t1 + me.bike + me.t2 + me.run; };
-
-  it('uma transição perfeita poupa tempo e uma má custa', () => {
-    const s = toRace();
-    const base = myTotal(s);
-    applyTransition(s, 1, 1);
-    expect(myTotal(s)).toBeLessThan(base);
-    applyTransition(s, 1, 0);
-    expect(myTotal(s)).toBeGreaterThan(base);
-    applyTransition(s, 1, NEUTRAL_SCORE);
-    expect(myTotal(s)).toBeCloseTo(base, 6);
-  });
-
-  it('o sprint final decide quem chega primeiro', () => {
-    const s = toRace();
-    const L = s.race!.live!, me = L.field.find(f => f.me)!, other = L.field.find(f => !f.me)!;
-    const sum = (f: typeof me) => f.swim + f.t1 + f.bike + f.t2 + f.run;
-    me.run += sum(other) - sum(me) + 2; // chega 2 s depois do outro
-    const opp = sprintOpponent(s);
-    expect(opp?.nm).toBe(other.nm);
-    applySprint(s, true);
-    expect(sum(me)).toBeLessThan(sum(other));
-    expect(s.race!.live!.sprint).toEqual({ nm: other.nm, won: true });
+  it('a prova joga-se segmento a segmento e atacar gasta mais energia', () => {
+    const s = newGame();
+    s.today = MONDAY + 5; // sábado
+    enterRace(s, CLUB_RACE.id);
+    startRace(s);
+    const L = s.race!.live!;
+    const opts = paceOptions(s);
+    expect(opts.find(o => o.pace === 'atacar')!.cost).toBeGreaterThan(opts.find(o => o.pace === 'poupar')!.cost);
+    expect(opts.find(o => o.pace === 'atacar')!.perKm).toBeLessThan(opts.find(o => o.pace === 'poupar')!.perKm);
+    runSegment(s, 'atacar');
+    expect(L.seg).toBe(1);
+    expect(L.energy).toBeLessThan(100);
+    autoRace(s);
     finishLiveRace(s);
     expect(s.race!.stage).toBe('done');
-    expect(s.race!.res!.timeline.some(l => l.text.includes('Sprint final'))).toBe(true);
-  });
-});
-
-describe('treinador', () => {
-  it('avisa quando a semana de prova tem sessões duras', () => {
-    const s = newGame();
-    processWeek(s); processWeek(s);
-    s.plan = ['runInt', 'bikeInt', 'brick', 'swimTec', 'rest', 'runZ2', 'bikeZ2'];
-    expect(coachTips(s)[0]).toMatchObject({ level: 'warn' });
-    expect(coachTips(s)[0].text).toContain('Prova no domingo');
-  });
-
-  it('aponta a disciplina que falta no plano', () => {
-    const s = newGame();
-    s.plan = ['runZ2', 'bikeZ2', 'rest', 'runZ2', 'bikeZ2', 'rest', 'runZ2'];
-    expect(coachTips(s).some(t => t.text.includes('natação'))).toBe(true);
-  });
-});
-
-describe('loja', () => {
-  it('não deixa comprar sem saldo', () => {
-    const s = newGame();
-    s.money = 100;
-    expect(buy(s, 'aero')).toContain('Faltam');
-    expect(s.owned.aero).toBeUndefined();
-    s.money = 3000;
-    buy(s, 'aero');
-    expect(s.owned.aero).toBe(true);
-    expect(s.money).toBe(600);
-  });
-});
-
-describe('ritmo diário', () => {
-  it('começa com a reserva cheia, gasta uma semana de cada vez e recarrega por dia', () => {
-    const s = newGame();
-    const day = 20000;
-    expect(weeksAvailable(s, day)).toBe(BAL.paceStart);
-    for (let i = 0; i < BAL.paceStart; i++) expect(takeWeek(s, day)).toBe(true);
-    expect(takeWeek(s, day)).toBe(false);
-    expect(weeksAvailable(s, day + 1)).toBe(BAL.pacePerDay);
-    expect(weeksAvailable(s, day + 30)).toBe(BAL.paceCap);
-  });
-});
-
-describe('calendário e mundial', () => {
-  it('só uma prova por semana e as provas não inscritas não se correm', () => {
-    const s = newGame();
-    toggleEntry(s, 'povoa');
-    expect(isEntered(s, 'povoa')).toBe(false);
-    processWeek(s); processWeek(s); processWeek(s);
+    expect(s.done).toBe(true);
+    expect(s.pb['5k']).toBe(s.race!.res!.total);
+    finishRace(s);
     expect(s.race).toBeNull();
-    expect(weekInSeason(s)).toBe(4);
-    toggleEntry(s, 'viseu');
-    expect(isEntered(s, 'viseu')).toBe(true);
-    toggleEntry(s, 'povoa'); // semana já passada: não muda
-    expect(isEntered(s, 'povoa')).toBe(false);
   });
 
-  it('o mundial pede vaga, e o Algarve dá-a ao top 3 do escalão', () => {
+  it('quem ataca sempre bate na parede numa maratona', () => {
     const s = newGame();
-    const mundial = CALENDAR.find(r => r.id === 'mundial')!;
-    expect(canEnter(s, mundial)).toBe(false);
-    expect(whyNot(s, mundial)).toContain('vaga');
-    s.slots.mundial = true;
-    expect(canEnter(s, mundial)).toBe(true);
+    s.race = { ...CALENDAR.find(r => r.id === 'vitoria')!, stage: 'setup', gels: 0, weather: { air: 18, wind: 0, rain: false } };
+    startRace(s);
+    for (let i = 0; i < DIST.maratona.segs; i++) runSegment(s, 'atacar');
+    expect(s.race!.live!.wall).toBe(true);
   });
 
-  it('acabar o Mundial fica no palmarés', () => {
+  it('um gel dá energia', () => {
     const s = newGame();
-    s.a = { swimTec: 95, swimEnd: 95, bikePow: 95, bikeEnd: 95, runSpd: 95, runEnd: 95, trans: 95, str: 95, mental: 95 };
-    s.money = 5000;
-    s.slots.mundial = true;
-    for (let i = 0; i < 20; i++) {
-      s.slots.mundial = true;
-      s.money = 5000;
-      processWeek(s);
-      if (s.race) { if (s.race.id === 'mundial') break; runRace(s); finishRace(s); }
-    }
-    expect(s.race?.id).toBe('mundial');
-    runRace(s);
-    expect(s.titles?.length).toBe(1);
-    expect(s.titles![0]).toMatch(/Mundo|Mundial/);
+    s.race = { ...CALENDAR.find(r => r.id === 'coimbra')!, stage: 'setup', gels: 2, weather: { air: 18, wind: 0, rain: false } };
+    startRace(s);
+    runSegment(s, 'atacar');
+    const e = s.race!.live!.energy;
+    takeGel(s);
+    expect(s.race!.live!.energy).toBeGreaterThan(e);
+    expect(s.race!.live!.gelsLeft).toBe(1);
+  });
+
+  it('a prova de calendário cobra inscrição e só aparece a quem está inscrito', () => {
+    const s = newGame();
+    s.today = MONDAY + 13;
+    expect(raceOffer(s)?.id).toBe('povoa');
+    const money = s.money;
+    enterRace(s, 'povoa');
+    expect(s.money).toBeLessThan(money);
+    const t = newGame();
+    t.today = MONDAY + 1;
+    toggleEntry(t, 'povoa');
+    t.today = MONDAY + 13;
+    expect(raceOffer(t)?.id).not.toBe('povoa');
+  });
+
+  it('o tempo previsto bate com os recordes reais do exemplo do Filinto', () => {
+    const s = createAthlete({ ...base, start: 'filinto' }, null, MONDAY);
+    expect(Math.abs(predict(s.a, '5k') - 1151)).toBeLessThan(45);
+    expect(Math.abs(predict(s.a, '10k') - 2365)).toBeLessThan(90);
+    expect(Math.abs(predict(s.a, 'meia') - 5128)).toBeLessThan(300);
+    expect(Math.abs(predict(s.a, 'maratona') - 12784)).toBeLessThan(1200);
+  });
+
+  it('os perfis prontos vão do iniciado ao rápido', () => {
+    expect(predict(PROFILES.beginner.a, '5k')).toBeGreaterThan(predict(PROFILES.regular.a, '5k'));
+    expect(predict(PROFILES.regular.a, '5k')).toBeGreaterThan(predict(PROFILES.fast.a, '5k'));
   });
 });
 
-describe('meteorologia e percursos', () => {
-  const a = PROFILES.runner.a;
-  const avgRun = (cond: Parameters<typeof simRace>[3]['cond']) => {
-    setSeed(3);
-    const race = CALENDAR.find(r => r.id === 'viana')!;
-    let sum = 0;
-    for (let i = 0; i < 200; i++) sum += simRace(a, race, { pos: 'lado', int: 0.88, gels: 2, strat: 'constante' }, { form: 0, bike: 0, ws: 0, shoe: 0, cond }).run;
-    return sum / 200;
-  };
-
-  it('o calor abranda a corrida, e a aclimatação reduz o efeito', () => {
-    const cool = avgRun({ course: 'plano', wind: 0, air: 18, rain: false });
-    const hot = avgRun({ course: 'plano', wind: 0, air: 32, rain: false });
-    const hotAccl = avgRun({ course: 'plano', wind: 0, air: 32, rain: false, heatAccl: true });
-    expect(hot).toBeGreaterThan(cool * 1.05);
-    expect(hotAccl).toBeLessThan(hot);
-    expect(hotAccl).toBeGreaterThan(cool);
-  });
-
-  it('com vento forte as rodas de perfil alto deixam de ajudar', () => {
-    setSeed(5);
-    const race = CALENDAR.find(r => r.id === 'viana')!;
-    const ch = { pos: 'lado' as const, int: 0.88, gels: 2, strat: 'constante' as const };
-    const res = simRace(a, race, ch, { form: 0, bike: 0, wheels: 0.02, ws: 0, shoe: 0, cond: { course: 'plano', wind: 35, air: 20, rain: false } });
-    expect(res.ev.some(e => e[1].includes('rodas de perfil alto'))).toBe(true);
-  });
-
-  it('cada prova tem o tempo do dia', () => {
+describe('temporada', () => {
+  it('ao fim de 12 semanas começa a temporada seguinte e o atleta faz anos', () => {
     const s = newGame();
-    processWeek(s); processWeek(s); processWeek(s);
-    expect(s.race?.weather).toBeDefined();
-    expect(s.race!.weather!.air).toBeGreaterThan(0);
+    const age = s.ath.age;
+    for (let i = 0; i < 12 * 7; i++) skipDay(s);
+    expect(season(s)).toBe(2);
+    expect(weekInSeason(s)).toBe(1);
+    expect(s.ath.age).toBe(age + 1);
   });
 });
 
-describe('estágios', () => {
-  it('o estágio de natação multiplica os ganhos de natação e cobra', () => {
-    const plan: GameState['plan'] = ['swimTec', 'swimEnd', 'swimTec', 'swimEnd', 'rest', 'swimTec', 'rest'];
-    const a = newGame(); a.plan = plan.slice(); processWeek(a);
-    setSeed(42);
-    const b = newGame(); b.plan = plan.slice();
-    const money = b.money;
-    expect(bookCamp(b, 'natacao')).toContain('Estágio marcado');
-    expect(b.money).toBe(money - CAMPS.find(c => c.id === 'natacao')!.cost);
-    processWeek(b);
-    expect(b.a.swimTec).toBeGreaterThan(a.a.swimTec);
-    expect(b.camp).toBeUndefined();
-  });
-
-  it('a altitude deixa um efeito de 4 semanas', () => {
+describe('importação de atividades', () => {
+  it('classifica corridas pela distância e pela intensidade', () => {
     const s = newGame();
-    s.money = 2000; // um atleta novo tem 850 € e o estágio custa 900 €
-    expect(bookCamp(s, 'altitude')).toContain('Estágio marcado');
-    processWeek(s); processWeek(s);
-    expect(s.altitudeUntil).toBeGreaterThanOrEqual(s.week + 2);
-  });
-});
-
-describe('rival com história', () => {
-  it('três vitórias seguidas sobre o rival trazem um rival novo', () => {
-    const s = newGame();
-    const first = s.rival.nm;
-    rivalAfterRace(s, true); rivalAfterRace(s, true);
-    expect(s.rival.nm).toBe(first);
-    rivalAfterRace(s, true);
-    expect(s.rival.nm).not.toBe(first);
-    expect(s.rivals?.[0].nm).toBe(first);
-    expect(s.inbox.some(m => m.t.startsWith('Novo rival'))).toBe(true);
-  });
-
-  it('um rival lesionado não aparece na prova', () => {
-    const s = newGame();
-    processWeek(s); processWeek(s);
-    s.rival.out = 3;
-    processWeek(s);
-    runRace(s);
-    expect(s.race!.res!.trace.some(r => r.tag === 'rival')).toBe(false);
-    expect(s.race!.res!.rivalNm).toBe('');
-  });
-});
-
-describe('histórico semanal', () => {
-  it('guarda nota, forma e fadiga de cada semana fechada', () => {
-    const s = newGame();
-    for (let i = 0; i < 2; i++) { processWeek(s); if (s.race) { runRace(s); finishRace(s); } }
-    expect(s.hist).toHaveLength(2);
-    expect(s.hist![0]).toMatchObject({ w: 1 });
-    expect(s.hist![1].w).toBe(2);
-    expect(s.hist![1].ovr).toBe(overall(s.a));
-    expect(s.hist![1].fat).toBeGreaterThanOrEqual(0);
+    const acts: Activity[] = [{ sport: 'run', start: noon(MONDAY), sec: 7200, km: 20, hr: 140 }];
+    addRealActivities(s, acts);
+    expect(s.last!.k).toBe('long');
   });
 });

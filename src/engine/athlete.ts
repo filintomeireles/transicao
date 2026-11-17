@@ -1,16 +1,11 @@
 import { BAL } from './balance';
-import { ATTR, ATTR_KEYS, CALENDAR, CLUBS, FILINTO, FIRST_NAMES, LAST_NAMES, OTHER_CLUBS, PRESETS, PROFILES } from './data';
+import { dayNumber, mondayOf } from './clock';
+import { ATTR_KEYS, CALENDAR, CLUBS, FILINTO, FIRST_NAMES, LAST_NAMES, OTHER_CLUBS, PRESETS, PROFILES } from './data';
 import { ageGroup, clamp } from './format';
 import type { ImportSummary } from './import/activities';
+import { overall } from './perf';
 import { gauss, pick, random, rnd } from './rng';
-import type { Attrs, Cat, ClubMember, GameState, ProfileKey, StartKind } from './types';
-
-export const overall = (a: Attrs): number => Math.round(
-  ((a.swimTec + a.swimEnd) / 2) * 0.2 +
-  ((a.bikePow + a.bikeEnd) / 2) * 0.3 +
-  ((a.runSpd + a.runEnd) / 2) * 0.33 +
-  ((a.trans + a.str + a.mental) / 3) * 0.17
-);
+import type { Attrs, Cat, ClubMember, GameState, ProfileKey, RaceType, SessionKey, StartKind } from './types';
 
 export const nameFor = (cat: Cat): string => pick(FIRST_NAMES[cat]) + ' ' + pick(LAST_NAMES);
 
@@ -33,26 +28,30 @@ export function validateNewAthlete(o: NewAthlete, imp: ImportSummary | null): Pa
   return err;
 }
 
-/** Cria uma carreira nova. Assume dados validados por validateNewAthlete. */
-export function createAthlete(o: NewAthlete, imp: ImportSummary | null): GameState {
+/** Cria uma carreira nova que começa hoje. Assume dados validados por validateNewAthlete. */
+export function createAthlete(o: NewAthlete, imp: ImportSummary | null, today = dayNumber()): GameState {
   const age = parseInt(o.age, 10);
-  let base: { a: Attrs; ctl: number; atl: number; fatigue: number; shoeKm: number; gear: [string, string][]; owned: Record<string, boolean> };
+  let a: Attrs, ctl: number, atl: number, fatigue = 30, shoeKm = 150, plan: SessionKey[] = PRESETS['Equilibrada'].slice();
+  let gear: [string, string][] = [['Sapatilhas de treino', '150 km']], owned: Record<string, boolean> = {}, pb: Partial<Record<RaceType, number>> = {};
   if (o.start === 'filinto') {
-    base = { a: { ...FILINTO.a }, ctl: FILINTO.ctl, atl: FILINTO.atl, fatigue: FILINTO.fatigue, shoeKm: FILINTO.shoeKm, gear: FILINTO.gear, owned: { carbon: true, crocs: true } };
+    a = { ...FILINTO.a }; ctl = FILINTO.ctl; atl = FILINTO.atl; fatigue = FILINTO.fatigue; shoeKm = FILINTO.shoeKm;
+    gear = FILINTO.gear; owned = { carbon: true, crocs: true, watch: true }; pb = { ...FILINTO.pb };
   } else if (o.start === 'files' && imp) {
-    base = { a: { ...imp.a }, ctl: imp.ctl, atl: imp.ctl, fatigue: imp.fatigue, shoeKm: 300, gear: [['Bike de estrada', 'do teu relógio ou app'], ['Sapatilhas de treino', '300 km']], owned: {} };
+    a = { ...imp.a }; ctl = atl = imp.ctl; fatigue = imp.fatigue; shoeKm = 300;
+    gear = [['Sapatilhas de treino', '300 km'], ['Relógio', 'do teu relógio ou app']];
   } else {
-    base = { a: { ...PROFILES[o.preset].a }, ctl: 250, atl: 250, fatigue: 30, shoeKm: 150, gear: [['Bike de estrada de alumínio', 'emprestada pelo primo'], ['Sapatilhas de treino', '150 km']], owned: {} };
+    a = { ...PROFILES[o.preset].a }; plan = PRESETS[PROFILES[o.preset].plan].slice();
+    ctl = atl = 18 + overall(a) * 0.5;
   }
   // Os perfis prontos e o exemplo são ritmos masculinos: na categoria feminina correm mais devagar.
-  if (o.cat === 'F' && o.start !== 'files') for (const k of ATTR_KEYS) if (ATTR[k][1] !== 'gen') base.a[k] -= BAL.fOffset;
+  if (o.cat === 'F' && o.start !== 'files') for (const k of ATTR_KEYS) if (k !== 'men' && k !== 'str') a[k] -= BAL.fOffset;
 
   const club = CLUBS.find(c => c.id === o.club) ?? CLUBS[0];
   const members: ClubMember[] = [];
   for (let i = 0; i < 12; i++) {
     const cat: Cat = i % 2 ? 'M' : 'F';
     // o clube já existia: os membros habituais chegam com eventos no historial
-    members.push({ nm: nameFor(cat), cat, age: 22 + Math.floor(random() * 35), r: clamp(52 + gauss() * 9, 30, 80), pts: 0, active: false, events: i < 2 ? 8 + Math.floor(random() * 12) : Math.floor(random() * 5) });
+    members.push({ nm: nameFor(cat), cat, age: 22 + Math.floor(random() * 35), r: clamp(50 + gauss() * 9, 28, 78), pts: 0, active: false, events: i < 2 ? 8 + Math.floor(random() * 12) : Math.floor(random() * 5) });
   }
   const legends: GameState['legends'] = {};
   for (const r of CALENDAR) legends[r.id] = { nm: nameFor(o.cat), count: 3 + Math.floor(random() * 3) };
@@ -60,24 +59,27 @@ export function createAthlete(o: NewAthlete, imp: ImportSummary | null): GameSta
   const rivalNm = nameFor(o.cat);
 
   const s: GameState = {
-    v: 3,
+    v: 4,
     ath: { name, cat: o.cat, age, city: o.city.trim() || '—', club: club.id, start: o.start },
-    week: 1, money: 850, fame: 8, pts: 0, job: true,
-    a: base.a, fatigue: base.fatigue, moral: 70, ctl: base.ctl, atl: base.atl, injury: 0, injuryName: '',
-    plan: PRESETS['Típica'].slice(), real: [[], [], [], [], [], [], []], rain: false,
-    owned: base.owned, subs: {}, shoeKm: base.shoeKm, shoeWarned: false, gear: base.gear,
+    born: today, start: mondayOf(today), today, done: false, tl: 0, feel: 0, rain: false,
+    money: 850, fame: 8, pts: 0, job: true,
+    a, fatigue, moral: 70, ctl, atl, injury: 0, injuryName: '',
+    plan, owned, subs: {}, shoeKm, shoeWarned: false, gear,
     sponsors: [], offered: {}, renew: {},
-    rival: { nm: rivalNm, age: clamp(age + Math.round(gauss() * 3), 18, 80), r: overall(base.a) + 4, beaten: 0, lost: 0, style: pick(['provocador', 'cavalheiro', 'calculista'] as const), run: 0 },
-    club: { id: club.id, members, div: 2, score: 0, season: 0, part: 0, myPts: null, clubPart: false, others: OTHER_CLUBS.map(n => ({ n, base: rnd(60, 95), score: 0, season: 0 })) },
+    rival: { nm: rivalNm, age: clamp(age + Math.round(gauss() * 3), 18, 80), r: overall(a) + 3, beaten: 0, lost: 0, style: pick(['provocador', 'cavalheiro', 'calculista'] as const), run: 0 },
+    hist: [],
+    club: { id: club.id, members, div: 2, score: 0, season: 0, part: 0, myPts: null, others: OTHER_CLUBS.map(n => ({ n, base: rnd(60, 95), score: 0, season: 0 })) },
     legends, raceCount: {}, slots: {}, chal: null,
     invite: name.slice(0, 3).toUpperCase().replace(/[^A-ZÇÃÕÁÉÍÓÚ]/g, 'X') + '-' + Math.floor(random() * 36 ** 4).toString(36).toUpperCase().padStart(4, '0'),
     inbox: [{
       k: 'msg',
       t: `Bem-vind${o.cat === 'F' ? 'a' : 'o'} ao Transição`,
-      x: `Corres na categoria ${o.cat === 'F' ? 'feminina' : 'masculina'}, escalão ${ageGroup(age)}, pelo ${club.n}. A primeira prova é o Sprint da Póvoa, na semana 3. ${o.cat === 'F' ? 'A tua rival' : 'O teu rival'} vai ser ${rivalNm}: está um pouco à tua frente.`
+      x: `Corres na categoria ${o.cat === 'F' ? 'feminina' : 'masculina'}, escalão ${ageGroup(age)}, pelo ${club.n}. O jogo anda ao ritmo do calendário: um treino por dia. Ao sábado há os 5 km do clube e a primeira prova de calendário é o 5 km da Póvoa, no domingo da 2.ª semana. ${o.cat === 'F' ? 'A tua rival' : 'O teu rival'} vai ser ${rivalNm}: está um pouco à tua frente.`
     }],
-    results: [], race: null, last: null
+    results: [], race: null, last: null, lastWeek: null, days: [],
+    wk: { load: 0, mine: 0, real: 0, club: false, z2: 0 },
+    xp: 0, talents: [], streak: 0, bestStreak: 0, pb,
+    realKeys: [], realTotal: 0, realStreak: 0, realBest: 0, clubEvents: 0, clubKit: 0
   };
-  if (o.start === 'filinto') s.inbox.unshift({ k: 'msg', t: 'As Supernova Rise estão gastas', x: '763 km. Foram reformadas. Andas agora com as Invincible Run 3 (2).', done: true });
   return s;
 }

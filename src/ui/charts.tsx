@@ -89,10 +89,10 @@ export function LineChart({ title, data, fmt = v => String(Math.round(v)), xLabe
 export interface StripRace { w: number; label: string; big?: boolean; entered: boolean; result?: string }
 
 /** As 20 semanas da temporada, com as provas marcadas e a semana atual. */
-export function SeasonStrip({ week, races }: { week: number; races: StripRace[] }) {
+export function SeasonStrip({ week, races, weeks = 12 }: { week: number; races: StripRace[]; weeks?: number }) {
   return (
-    <div className="strip" role="img" aria-label={`Semana ${week} de 20. Provas inscritas: ${races.filter(r => r.entered).map(r => `semana ${r.w}`).join(', ') || 'nenhuma'}`}>
-      {Array.from({ length: 20 }, (_, i) => {
+    <div className="strip" style={{ gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }} role="img" aria-label={`Semana ${week} de ${weeks}. Provas inscritas: ${races.filter(r => r.entered).map(r => `semana ${r.w}`).join(', ') || 'nenhuma'}`}>
+      {Array.from({ length: weeks }, (_, i) => {
         const w = i + 1, r = races.find(x => x.w === w);
         const cls = ['cell', w < week ? 'past' : '', w === week ? 'now' : '', r?.entered ? 'race' : r ? 'race-off' : '', r?.big ? 'big' : ''].filter(Boolean).join(' ');
         return (
@@ -101,6 +101,18 @@ export function SeasonStrip({ week, races }: { week: number; races: StripRace[] 
           </span>
         );
       })}
+    </div>
+  );
+}
+
+/** Barras de ritmo por segmento: mais alta = mais rápida. Cor pelo esforço escolhido. */
+export function PaceBars({ segs }: { segs: { t: number; km: number; pace: string }[] }) {
+  const per = segs.map(x => x.t / x.km), lo = Math.min(...per), hi = Math.max(...per), span = Math.max(4, hi - lo);
+  const color: Record<string, string> = { poupar: 'var(--easy)', ritmo: 'var(--long)', atacar: 'var(--fast)', seguir: 'var(--accent)' };
+  void lo;
+  return (
+    <div className="pacebars" aria-hidden="true">
+      {segs.map((x, i) => <i key={i} style={{ height: `${30 + ((hi - per[i]) / span) * 70}%`, background: color[x.pace] }} />)}
     </div>
   );
 }
@@ -115,20 +127,8 @@ const COURSE_PATH: Record<Course, string> = {
 export function CourseProfile({ course }: { course: Course }) {
   return (
     <svg className="course" viewBox="0 0 320 52" preserveAspectRatio="none" aria-hidden="true">
-      <path d={`${COURSE_PATH[course]} L320 52 L0 52 Z`} fill="var(--bike)" fillOpacity="0.14" />
-      <path d={COURSE_PATH[course]} fill="none" stroke="var(--bike)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <path d={`${COURSE_PATH[course]} L320 52 L0 52 Z`} fill="var(--long)" fillOpacity="0.14" />
+      <path d={COURSE_PATH[course]} fill="none" stroke="var(--long)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </svg>
-  );
-}
-
-const SPLIT_COLOR = ['var(--swim)', 'var(--muted)', 'var(--bike)', 'var(--muted)', 'var(--run)'];
-
-/** Barra com a parte do tempo total em cada segmento; os nomes e tempos ficam por baixo. */
-export function SplitBar({ parts }: { parts: [string, number][] }) {
-  const total = parts.reduce((a, [, t]) => a + t, 0) || 1;
-  return (
-    <div className="splitbar" aria-hidden="true">
-      {parts.map(([l, t], i) => <i key={l} style={{ flexGrow: t / total, background: SPLIT_COLOR[i] }} />)}
-    </div>
   );
 }

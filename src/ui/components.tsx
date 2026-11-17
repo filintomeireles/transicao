@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { eur, form, nextRace, season, weekInSeason, type GameState } from '../engine';
+import { dateLabel, eur, form, level, season, weekInSeason, weekdayName, xpForLevel, type GameState } from '../engine';
 import { Ring } from './charts';
 import { buzz } from './fx';
 import { Icon, type IconName } from './icons';
@@ -11,36 +11,33 @@ export function Track({ value, color, thin }: { value: number; color?: string; t
 
 const fatColor = (f: number) => (f > 70 ? 'var(--bad)' : f > 50 ? 'var(--warn)' : 'var(--good)');
 const fatWord = (f: number) => (f > 70 ? 'muito cansado' : f > 50 ? 'cansado' : f > 25 ? 'normal' : 'fresco');
-const formWord = (f: number) => (f >= 6 ? 'em pico' : f >= 2 ? 'boa' : f > -4 ? 'neutra' : f > -10 ? 'em carga' : 'pesada');
+const formWord = (f: number) => (f >= 8 ? 'em pico' : f >= 3 ? 'boa' : f > -5 ? 'neutra' : f > -12 ? 'em carga' : 'pesada');
 const moralWord = (m: number) => (m >= 75 ? 'em alta' : m >= 45 ? 'estável' : 'em baixo');
 
-/** Cabeçalho do jogo: semana, dinheiro, fama e os três medidores. */
+/** Cabeçalho do jogo: dia real, semana da temporada, dinheiro, fama, os três medidores e o nível. */
 export function StatusBar({ game }: { game: GameState }) {
-  const f = form(game), wk = weekInSeason(game), nr = nextRace(game);
+  const f = form(game), wk = weekInSeason(game), lv = level(game.xp);
+  const from = xpForLevel(lv), to = xpForLevel(lv + 1);
   return (
     <header className="hud">
       <div className="hud-in">
         <div className="hud-top">
           <div className="hud-week">
-            <span className="hud-pill">T{season(game)}</span>
-            <b>Semana {wk}<span className="hud-of">/20</span></b>
+            <span className="hud-pill">T{season(game)} · S{wk}</span>
+            <b>{weekdayName(game.today).slice(0, 3)} {dateLabel(game.today)}</b>
           </div>
           <div className="hud-right">
             <span className="hud-stat" title="Fama"><Icon name="star" size={15} /> {Math.round(game.fame)}</span>
             <span className={`hud-stat money${game.money < 0 ? ' neg' : ''}`}><Icon name="coin" size={15} /> {eur(game.money)}</span>
           </div>
         </div>
-        <div className="hud-progress" aria-hidden="true">
-          <i style={{ width: `${(wk / 20) * 100}%` }} />
-          {nr && <b style={{ left: `${(nr.w / 20) * 100}%` }} title={nr.n} />}
-        </div>
-        <div className="meters">
+        <div className="meters" style={{ marginTop: 10 }}>
           <div className="meter">
             <Ring value={game.fatigue} color={fatColor(game.fatigue)} size={38}>{Math.round(game.fatigue)}</Ring>
             <span><b>Fadiga</b>{fatWord(game.fatigue)}</span>
           </div>
           <div className="meter">
-            <Ring value={50 + f * 2} color={f < -6 ? 'var(--warn)' : 'var(--accent-hud)'} size={38}>{f >= 0 ? '+' : ''}{Math.round(f)}</Ring>
+            <Ring value={50 + f * 2.5} color={f < -8 ? 'var(--warn)' : 'var(--accent-hud)'} size={38}>{f >= 0 ? '+' : ''}{Math.round(f)}</Ring>
             <span><b>Forma</b>{formWord(f)}</span>
           </div>
           <div className="meter">
@@ -48,13 +45,18 @@ export function StatusBar({ game }: { game: GameState }) {
             <span><b>Moral</b>{moralWord(game.moral)}</span>
           </div>
         </div>
+        <div className="xpbar" title="Pontos de treino">
+          <span className="lv">NV {lv}</span>
+          <div className="track thin"><i style={{ width: `${((game.xp - from) / (to - from)) * 100}%` }} /></div>
+          <span>{Math.round(game.xp - from)}/{to - from} pts{game.streak >= 2 ? ` · ${game.streak} dias seguidos` : ''}</span>
+        </div>
       </div>
     </header>
   );
 }
 
 export type Tab = 'semana' | 'atleta' | 'clube' | 'loja' | 'carreira';
-const TABS: [Tab, string, IconName][] = [['semana', 'Semana', 'week'], ['atleta', 'Atleta', 'user'], ['clube', 'Clube', 'club'], ['loja', 'Loja', 'shop'], ['carreira', 'Carreira', 'trophy']];
+const TABS: [Tab, string, IconName][] = [['semana', 'Hoje', 'week'], ['atleta', 'Atleta', 'user'], ['clube', 'Clube', 'club'], ['loja', 'Loja', 'shop'], ['carreira', 'Carreira', 'trophy']];
 
 export function Tabs({ tab, onTab, unread }: { tab: Tab; onTab: (t: Tab) => void; unread: number }) {
   return (

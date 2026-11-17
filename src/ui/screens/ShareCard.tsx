@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DIST, fmt, myClub, season, weekInSeason, type GameState, type RaceDef, type RaceResult } from '../../engine';
+import { DIST, dec, fmt, myClub, pace, season, weekInSeason, type GameState, type RaceDef, type RaceResult } from '../../engine';
 
 // Cores fixas: o cartão é uma imagem, igual em tema claro e escuro.
 const C = { bg: '#141B2D', card: '#211F4A', ink: '#FFFFFF', muted: '#A8AFC4', accent: '#A99EF5', swim: '#3987e5', bike: '#c98500', run: '#d55181' };
@@ -20,27 +20,29 @@ function draw(game: GameState, race: RaceDef, res: RaceResult): string {
   text('TRANSIÇÃO', 80, 120, 34, C.muted, 700);
   text(`Temporada ${season(game)} · semana ${weekInSeason(game)}`, 1000, 120, 30, C.muted, 400, FONT, 'right');
   text(race.n, 80, 220, 64, C.ink, 700);
-  text(`${DIST[race.t].l} · ${DIST[race.t].swim} m · ${DIST[race.t].bike} km · ${String(DIST[race.t].run).replace('.', ',')} km`, 80, 275, 32, C.muted);
+  text(`${DIST[race.t].l} · ${dec(DIST[race.t].km)} km`, 80, 275, 32, C.muted);
 
   text(`${res.p}${res.o}`, 80, 520, 230, C.ink, 700);
   text(`geral ${res.catL}`, 560, 420, 40, C.muted);
   text(`de ${res.N} atletas`, 560, 470, 40, C.muted);
-  text(fmt(res.me.total), 560, 540, 64, C.ink, 600, MONO);
+  text(fmt(res.total), 560, 540, 64, C.ink, 600, MONO);
 
   g.fillStyle = C.card; g.beginPath(); g.roundRect(80, 600, 920, 120, 24); g.fill();
   g.fillStyle = C.accent; g.fillRect(80, 600, 12, 120);
   text(`${res.agP}${res.o} no escalão ${game.ath.cat} ${res.ag}`, 540, 677, 50, C.ink, 700, FONT, 'center');
 
-  const splits: [string, number, string][] = [['Natação', res.me.swim, C.swim], ['T1', res.me.t1, C.muted], ['Bike', res.me.bike, C.bike], ['T2', res.me.t2, C.muted], ['Corrida', res.me.run, C.run]];
-  splits.forEach(([label, t, color], i) => {
-    const x = 80 + i * 188;
-    g.fillStyle = color; g.fillRect(x, 790, 168, 8);
-    text(label, x, 845, 28, C.muted);
-    text(fmt(t), x, 895, 36, C.ink, 600, MONO);
+  text(`${pace(res.total / DIST[race.t].km)} /km`, 80, 830, 44, C.ink, 600, MONO);
+  if (res.pb) text(res.prevPb ? `Recorde pessoal: −${fmt(res.prevPb - res.total)}` : 'Primeiro recorde nesta distância', 80, 900, 40, C.bike, 700);
+  const per = res.segs.map(x => x.t / x.km), hi = Math.max(...per), lo = Math.min(...per), span = Math.max(4, hi - lo);
+  const bw = 920 / res.segs.length;
+  res.segs.forEach((x, i) => {
+    const h = 30 + ((hi - per[i]) / span) * 70;
+    g.fillStyle = x.pace === 'atacar' ? C.run : x.pace === 'poupar' ? C.swim : x.pace === 'seguir' ? C.accent : C.bike;
+    g.fillRect(80 + i * bw + 4, 1000 - h, bw - 8, h);
   });
 
-  if (res.beatRival) text(`Bati o meu rival, ${res.rivalNm}.`, 80, 1010, 40, C.ink);
-  if (res.slot) text(res.slot, 80, 1065, 34, C.accent, 700);
+  if (res.beatRival) text(`Bati o meu rival, ${res.rivalNm}.`, 80, 1080, 40, C.ink);
+  if (res.slot) text(res.slot, 80, 1135, 34, C.accent, 700);
   text(game.ath.name, 80, 1230, 48, C.ink, 700);
   text(myClub(game).n, 80, 1285, 32, C.muted);
   return cv.toDataURL('image/png');
@@ -71,7 +73,7 @@ export function ShareCard({ game, race, res, onClose }: { game: GameState; race:
   return (
     <div className="card">
       <b>Cartão para partilhar</b>
-      {url ? <img src={url} alt={`Cartão: ${res.p}${res.o} no ${race.n}, ${fmt(res.me.total)}`} style={{ width: '100%', borderRadius: 8 }} /> : <span className="small muted">A desenhar…</span>}
+      {url ? <img src={url} alt={`Cartão: ${res.p}${res.o} no ${race.n}, ${fmt(res.total)}`} style={{ width: '100%', borderRadius: 8 }} /> : <span className="small muted">A desenhar…</span>}
       <div className="row">
         <button className="btn sm" onClick={share} disabled={!url}>Partilhar</button>
         <button className="btn sm ghost" onClick={onClose}>Fechar</button>
