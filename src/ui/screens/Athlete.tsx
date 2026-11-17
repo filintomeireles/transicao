@@ -1,29 +1,31 @@
 import { useState } from 'react';
 import {
   ATTR, BAL, DIST, SHOP, STYLE_NAME, TALENTS, ageGroup, dateLabel, dec, eur, fmt, form, level, myClub, overall, pickTalent, predict,
-  quitJob, returnToJob, talentPoints, xpForLevel,
+  isVerified, quitJob, returnToJob, talentPoints, xpForLevel,
   type AttrKey, type GameState, type RaceType
 } from '../../engine';
 import { LineChart } from '../charts';
-import { Avatar, Seg, Stat, Title, Track } from '../components';
+import { Avatar, Flash, Seg, Stat, Title, Track } from '../components';
 import { applyTheme, buzz, loadTheme, type Theme } from '../fx';
 import { FAM_ICON, Icon, SHOP_ICON } from '../icons';
+import { CompareCard, TestCard, TwoTimes } from '../Reality';
 import type { Apply } from '../useGame';
 
 const BADGES = [4, 8, 12, 20];
 
-export function AthleteScreen({ game, apply, onReset }: { game: GameState; apply: Apply; onReset: () => void }) {
+export function AthleteScreen({ game, apply, onReset, flash, setFlash }: { game: GameState; apply: Apply; onReset: () => void; flash: string; setFlash: (t: string) => void }) {
   const [quitAsk, setQuitAsk] = useState(false);
   const [resetAsk, setResetAsk] = useState(false);
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const A = game.ath, R = game.rival, ovr = overall(game.a), f = form(game), lv = level(game.xp), tp = talentPoints(game);
   const owned = SHOP.filter(i => game.owned[i.id]);
   const sponsorsWeekly = game.sponsors.reduce((a, s) => a + s.weekly, 0);
-  const verified = game.realTotal >= 5;
+  const verified = isVerified(game);
   const hist = game.hist;
 
   return (
     <>
+      <Flash text={flash} onClose={() => setFlash('')} />
       <div className="card hero">
         <div className="row" style={{ gap: 14, flexWrap: 'nowrap' }}>
           <Avatar name={A.name} size={68} badge={ovr} />
@@ -47,8 +49,15 @@ export function AthleteScreen({ game, apply, onReset }: { game: GameState; apply
             </div>
           ))}
         </div>
-        <span className="small muted">Em cima o teu recorde em cada distância; em baixo o tempo que o jogo prevê hoje, em plano e bem gerido.</span>
+        <span className="small muted">Em cima o recorde do atleta nas provas do jogo; em baixo o tempo que o jogo prevê hoje, em plano e bem gerido.</span>
       </div>
+
+      <div className="card">
+        <Title icon="check">O jogo e a realidade</Title>
+        <TwoTimes game={game} />
+      </div>
+      <TestCard game={game} apply={apply} setFlash={setFlash} always />
+      <CompareCard game={game} />
 
       <div className="card">
         <Title icon="star" right={tp > 0 ? <span className="chip gold pulse">{tp} ponto{tp > 1 ? 's' : ''} por gastar</span> : <span className="chip">nível {lv}</span>}>Nível e talentos</Title>

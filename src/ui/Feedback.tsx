@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ageGroup, level, overall, season, weekInSeason, type GameState } from '../engine';
 import type { Apply } from './useGame';
 
-const START_NAME = { files: 'ficheiros reais', preset: 'perfil pronto', filinto: 'exemplo do Filinto' } as const;
+const START_NAME = { files: 'ficheiros reais', tempo: 'tempo escrito', preset: 'perfil pronto', filinto: 'exemplo do Filinto' } as const;
 
 /** Momento do jogo em que vale a pena pedir opinião, se ainda não foi pedida. */
 function dueMoment(s: GameState): string | null {

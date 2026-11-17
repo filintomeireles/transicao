@@ -10,6 +10,7 @@ import { FeedbackPrompt } from '../Feedback';
 import { buzz } from '../fx';
 import { GuideCard } from '../guide';
 import { Icon, SESSION_ICON, type IconName } from '../icons';
+import { TestCard } from '../Reality';
 import type { Apply } from '../useGame';
 
 const FEEL = { 1: ['Acordaste ótimo', 'good', 'Os treinos de hoje rendem mais 8%.'], 0: ['Acordaste normal', 'acc', ''], [-1]: ['Acordaste pesado', 'warn', 'Os treinos de hoje rendem menos 8%.'] } as const;
@@ -148,6 +149,8 @@ export function TodayScreen({ game, apply, flash, setFlash, free, onNextDay }: {
           </div>
         </div>
       )}
+
+      {!game.race && <TestCard game={game} apply={apply} setFlash={setFlash} />}
 
       {!game.done ? (
         <div className="card today-card">

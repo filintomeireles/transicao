@@ -13,6 +13,7 @@ export * from './actions';
 export * from './coach';
 export * from './weather';
 export * from './rival';
+export * from './verify';
 export * from './import/activities';
 export { parseFIT } from './import/fit';
 export { parseGPX, parseTCX } from './import/xml';

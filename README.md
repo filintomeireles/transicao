@@ -33,6 +33,16 @@ importando o ficheiro do relógio (vale mais), confirmando que se treinou, ou si
 não se abre o jogo correm em piloto automático (rende pouco) e, ao fim de 10 dias, o atleta para.
 Para testes internos, `?ritmo=livre` mostra um botão para avançar para o dia seguinte.
 
+## Ligação à realidade
+
+O atleta parte de um tempo real: uma corrida importada (a mais rápida conta) ou um tempo escrito
+(5 km, 10 km, meia ou maratona; com dois, o jogo separa o corredor rápido do de fundo). Esse é o
+**tempo verificado** (`src/engine/verify.ts`). A assiduidade no jogo leva o atleta até 8% à frente dele
+(`BAL.verCap`); para ir além é preciso um teste real. Corridas reais mais rápidas do que o atleta sobem-no
+logo até ao tempo real; um teste mais lento baixa o tempo verificado e o atleta desce metade do excesso.
+O jogo propõe um teste dos 5 km a cada 4 semanas. Em Atleta há dois números para comparar com amigos:
+dedicação (no jogo) e evolução real (só tempos verificados).
+
 A versão de triatlo com semanas está guardada na etiqueta `triatlo-semanal-v1`.
 
 ## Testadores (versão web)
@@ -90,7 +100,7 @@ O `appId` (`com.transicao.app`, em `capacitor.config.ts`) não pode mudar depois
 
 - O motor nunca toca na interface. Cada ação recebe o estado e altera-o; a interface aplica-a a uma cópia (`src/ui/useGame.ts`).
 - Todo o acaso passa por `src/engine/rng.ts`. Com `setSeed(n)`, testes e simulações são reproduzíveis.
-- O jogo grava no `localStorage` do browser (`transicao-save-v3`).
+- O jogo grava no `localStorage` do browser (`transicao-save-v4`).
 
 ## Próximos passos
 

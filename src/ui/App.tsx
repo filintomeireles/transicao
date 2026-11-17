@@ -31,7 +31,7 @@ export function App() {
     screen = game.race
       ? <RaceScreen game={game} apply={apply} onDone={() => window.scrollTo(0, 0)} />
       : <TodayScreen game={game} apply={apply} flash={flash} setFlash={setFlash} free={FREE_PACE} onNextDay={nextDay} />;
-  } else if (tab === 'atleta') screen = <AthleteScreen game={game} apply={apply} onReset={reset} />;
+  } else if (tab === 'atleta') screen = <AthleteScreen game={game} apply={apply} onReset={reset} flash={flash} setFlash={setFlash} />;
   else if (tab === 'clube') screen = <ClubScreen game={game} flash={flash} setFlash={setFlash} />;
   else if (tab === 'loja') screen = <ShopScreen game={game} apply={apply} flash={flash} setFlash={setFlash} />;
   else screen = <CareerScreen game={game} apply={apply} />;

@@ -9,6 +9,7 @@ import { overall } from './perf';
 import { abandonRace } from './race';
 import { pick, random, rnd } from './rng';
 import { rivalWeek } from './rival';
+import { CAP_NOTE, applyEffort, bestEffort, effortOf, enforceCap, isVerified } from './verify';
 import type { Activity, AttrKey, Attrs, DaySummary, Effort, GameState, How, SessionKey } from './types';
 import { clubToday, form, groupToday, has, myClub, plannedToday, season, weekInSeason, weekday, weekIdx } from './world';
 
@@ -55,13 +56,15 @@ export function train(s: GameState, k: SessionKey, o: TrainOpts): DaySummary {
   if (club) m *= BAL.clubBonus;
   if (group) m *= BAL.clubBonus;
   if (o.how === 'sim' && s.rain && S.run && !s.owned.treadmill) m *= 0.85;
-  const gains: Partial<Attrs> = {}, notes: string[] = [];
+  const gains: Partial<Attrs> = {}, notes: string[] = [], before = { ...s.a };
   for (const [at, g0] of Object.entries(S.g) as [AttrKey, number][]) {
     let g = g0 * m * Math.pow(1 - s.a[at] / 100, 1.2) * (camp?.mult[at] ?? 1);
     if (at === 'str' && s.subs.gym) g *= 1.3;
     s.a[at] = Math.min(99, s.a[at] + g);
     gains[at] = g;
   }
+  const capped = enforceCap(s, before, gains);
+  if (capped) notes.push(CAP_NOTE);
   if (part >= 1) {
     s.fatigue = clamp(s.fatigue + load * BAL.fatIn, 0, 100);
     s.wk.load += load;
@@ -82,7 +85,7 @@ export function train(s: GameState, k: SessionKey, o: TrainOpts): DaySummary {
     s.moral = clamp(s.moral - 8, 0, 100);
     notes.push(`Lesão: ${s.injuryName}. ${s.injury} dias sem correr; podes fazer treino cruzado e força.`);
   }
-  return { d: s.today, k, how: o.how, effort: o.effort, load: Math.round(load), xp, gains, notes, min: Math.round(o.min ?? S.min * ratio), km: Math.round((o.km ?? S.km * ratio) * 10) / 10 };
+  return { d: s.today, k, how: o.how, effort: o.effort, load: Math.round(load), xp, gains, notes, min: Math.round(o.min ?? S.min * ratio), km: Math.round((o.km ?? S.km * ratio) * 10) / 10, capped };
 }
 
 /** Conta o treino de hoje como feito por ti: série de dias, objetivo da semana, resumo. */
@@ -291,10 +294,20 @@ export function skipDay(s: GameState): void {
   newDay(s);
 }
 
-/** Junta atividades reais. As de hoje fazem o treino do dia; as dos últimos 7 dias substituem o piloto automático. */
-export function addRealActivities(s: GameState, acts: Activity[], errs: string[] = []): string {
-  const done: string[] = [], old: string[] = [];
+/**
+ * Junta atividades reais. As de hoje fazem o treino do dia; as dos últimos 7 dias substituem o piloto automático.
+ * Cada corrida é também uma prova do que vales: se for mais rápida do que o atleta do jogo, ele sobe até ela.
+ * Com `test`, a melhor corrida dos ficheiros fica como tempo verificado (o teste mensal).
+ */
+export function addRealActivities(s: GameState, acts: Activity[], errs: string[] = [], opt: { test?: boolean } = {}): string {
+  const done: string[] = [], old: string[] = [], verNotes: string[] = [];
   const weekStart = s.start + weekIdx(s) * 7;
+  const recent = (a: Activity) => { const d = a.start ? dayOfTime(a.start) : s.today; return d <= s.today && d >= s.today - 7; };
+  if (opt.test) {
+    const best = bestEffort(acts.filter(recent));
+    if (best) verNotes.push(...applyEffort(s, best, 'teste', true).notes);
+    else verNotes.push('Teste sem corrida válida: precisamos de uma corrida entre 3 e 45 km dos últimos 7 dias.');
+  }
   for (const a of acts) {
     const k = classify(a, s.a, s.ath.age);
     if (!k) continue;
@@ -304,6 +317,9 @@ export function addRealActivities(s: GameState, acts: Activity[], errs: string[]
     if (d > s.today || d < s.today - 7) { old.push(key); continue; }
     s.realKeys = [...s.realKeys, key].slice(-300);
     s.realTotal++;
+    const e = opt.test ? null : effortOf(a);
+    // um treino real só conta como tempo verificado se foi a sério (ritmo ou séries), ou se bate o atleta do jogo
+    if (e && (isVerified(s) || k === 'tempo' || k === 'int')) verNotes.push(...applyEffort(s, e, 'treino').notes);
     if (d >= weekStart) s.wk.real++;
     const ratio = loadRatio(a, k), km = Math.round(a.km * 10) / 10, min = Math.round(a.sec / 60);
     const label = `${SESS[k].n}${km ? ` · ${dec(km)} km` : ''}`;
@@ -334,6 +350,7 @@ export function addRealActivities(s: GameState, acts: Activity[], errs: string[]
     }
   }
   let msg = done.length ? `Treino real: ${done.join('; ')}. Vale ${Math.round(BAL.real * 100)}% de um treino simulado e o dobro dos pontos.` : 'Nenhum treino novo importado.';
+  if (verNotes.length) msg += ' ' + verNotes.join(' ');
   if (old.length) msg += ` ${old.length} atividade${old.length > 1 ? 's' : ''} com mais de 7 dias ficaram de fora.`;
   if (errs.length) msg += ' ' + errs.join('; ');
   return msg;

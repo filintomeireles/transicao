@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
-  CLUBS, PROFILES, ageGroup, attrsFromActs, createAthlete, fmt, overall, predict, readFiles, sampleActs, validateNewAthlete,
-  type GameState, type ImportSummary, type NewAthlete, type ProfileKey, type StartKind
+  BAL, CLUBS, DIST, PROFILES, calibrate, ageGroup, attrsFromActs, createAthlete, fmt, overall, parseTime, plausible, predict, readFiles, sampleActs, validateNewAthlete,
+  type GameState, type RaceType, type RealTime, type ImportSummary, type NewAthlete, type ProfileKey, type StartKind
 } from '../../engine';
 import { Avatar, Seg, Title } from '../components';
 import { Icon, type IconName } from '../icons';
@@ -18,8 +18,14 @@ export function Logo({ size = 52 }: { size?: number }) {
 }
 
 export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
-  const [o, setO] = useState<NewAthlete>({ name: '', cat: 'F', age: '', city: '', club: 'pacos', start: 'preset', preset: 'regular' });
+  const [o, setO] = useState<NewAthlete>({ name: '', cat: 'F', age: '', city: '', club: 'pacos', start: 'tempo', preset: 'regular' });
   const [imp, setImp] = useState<ImportSummary | null>(null);
+  const [times, setTimes] = useState<Partial<Record<RaceType, string>>>({});
+  const parsed: RealTime[] = (Object.keys(DIST) as RaceType[]).flatMap(t => {
+    const sec = times[t] ? parseTime(times[t]!) : null;
+    return sec && plausible(t, sec) ? [{ t, sec }] : [];
+  });
+  const badTimes = (Object.keys(DIST) as RaceType[]).filter(t => times[t]?.trim() && !parsed.some(p => p.t === t));
   const [err, setErr] = useState<ReturnType<typeof validateNewAthlete>>({});
   const set = <K extends keyof NewAthlete>(k: K, v: NewAthlete[K]) => { setO(p => ({ ...p, [k]: v })); setErr(e => ({ ...e, [k]: undefined })); };
   const age = parseInt(o.age, 10);
@@ -32,10 +38,12 @@ export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
   }
 
   function create() {
-    const e = validateNewAthlete(o, imp);
+    const full = { ...o, times: parsed };
+    const e = validateNewAthlete(full, imp);
+    if (o.start === 'tempo' && badTimes.length) e.times = `Tempo que não percebemos: ${badTimes.map(t => DIST[t].l).join(', ')}. Escreve como 24:30 ou 1:52:10.`;
     setErr(e);
     if (Object.keys(e).length) return;
-    onCreate(createAthlete(o, imp));
+    onCreate(createAthlete(full, imp));
     window.scrollTo(0, 0);
   }
 
@@ -85,7 +93,8 @@ export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
       </div>
 
       <Title icon="flag">Ponto de partida</Title>
-      {startOpt('files', 'Importar dados reais', 'Ficheiros FIT, GPX ou TCX de qualquer relógio ou app. Strava e outras apps chegam depois.', 'upload')}
+      <span className="small muted">O teu atleta parte do teu tempo real. Quanto mais certo, mais justo o jogo: a assiduidade leva-o até {BAL.verCap * 100}% à frente desse tempo; para ir além, só correndo.</span>
+      {startOpt('files', 'Importar corridas reais', 'Ficheiros FIT, GPX ou TCX. A tua corrida mais rápida dá o tempo verificado.', 'upload')}
       {o.start === 'files' && (
         <div className="card">
           <div className="row">
@@ -96,6 +105,7 @@ export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
           </div>
           {imp && imp.n > 0 ? (
             <>
+              {imp.best && <div className="small">Tempo verificado: <b className="mono">{DIST[imp.best.t].l} em {fmt(imp.best.sec)}</b> (a tua melhor corrida, convertida na distância de prova mais próxima).</div>}
               <div className="small">{imp.sample ? 'Exemplo: ' : ''}{imp.n} treinos lidos ({imp.sports.run} corridas, {imp.sports.other} outros). Nota geral prevista: <b>{overall(imp.a)}</b>.</div>
               <div className="small muted">5 km previsto {fmt(predict(imp.a, '5k'))} · 10 km {fmt(predict(imp.a, '10k'))} · meia {fmt(predict(imp.a, 'meia'))}</div>
             </>
@@ -106,7 +116,25 @@ export function Onboarding({ onCreate }: { onCreate: (s: GameState) => void }) {
           {err.files && <span className="err">{err.files}</span>}
         </div>
       )}
-      {startOpt('preset', 'Perfil pronto', 'Escolhe o teu nível de corredor', 'user')}
+      {startOpt('tempo', 'Escrever os meus tempos', 'Um tempo recente feito a fundo: 5 km, 10 km, meia ou maratona.', 'timer')}
+      {o.start === 'tempo' && (
+        <div className="card">
+          <div className="times">
+            {(Object.keys(DIST) as RaceType[]).map(t => (
+              <label key={t} className="f">{DIST[t].l}
+                <input type="text" inputMode="numeric" placeholder={t === '5k' ? '24:30' : t === '10k' ? '51:00' : t === 'meia' ? '1:55:00' : '4:05:00'}
+                  value={times[t] ?? ''} aria-invalid={badTimes.includes(t)} onChange={e => { setTimes(p => ({ ...p, [t]: e.target.value })); setErr(x => ({ ...x, times: undefined })); }} />
+              </label>
+            ))}
+          </div>
+          {parsed.length > 0 && (() => { const a = calibrate(PROFILES.regular.a, parsed); return (
+            <div className="small muted">O teu atleta: 5 km {fmt(predict(a, '5k'))} · 10 km {fmt(predict(a, '10k'))} · meia {fmt(predict(a, 'meia'))} · maratona {fmt(predict(a, 'maratona'))}</div>
+          ); })()}
+          <span className="small muted">Basta um. Com dois (um curto e um longo), o jogo percebe se és mais rápido ou mais de fundo. Um tempo escrito vale como verificado, mas o jogo vai pedir-te um teste real para o confirmar.</span>
+          {err.times && <span className="err">{err.times}</span>}
+        </div>
+      )}
+      {startOpt('preset', 'Perfil pronto', 'Sem tempo real: o atleta fica por verificar até fazeres um teste.', 'user')}
       {o.start === 'preset' && (
         <select id="ob-preset" aria-label="Perfil pronto" value={o.preset} onChange={e => set('preset', e.target.value as ProfileKey)}>
           {(Object.entries(PROFILES) as [ProfileKey, { n: string; d: string }][]).map(([k, p]) => <option key={k} value={k}>{p.n} · {p.d}</option>)}

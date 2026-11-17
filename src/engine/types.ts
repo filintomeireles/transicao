@@ -10,7 +10,11 @@ export type RivalStyle = 'provocador' | 'cavalheiro' | 'calculista';
 /** Tempo no dia da prova: temperatura do ar (°C), vento (km/h), chuva. */
 export interface Weather { air: number; wind: number; rain: boolean }
 export type RaceTier = 'clube' | 'regional' | 'nacional' | 'internacional' | 'pro' | 'mundial';
-export type StartKind = 'files' | 'preset' | 'filinto';
+export type StartKind = 'files' | 'tempo' | 'preset' | 'filinto';
+/** De onde vem o tempo verificado. 'perfil' quer dizer que ainda não há nenhum tempo real. */
+export type VerSrc = 'perfil' | 'declarado' | 'ficheiro' | 'teste' | 'treino' | 'strava';
+/** Um tempo real numa distância: é com ele que o atleta do jogo se compara. */
+export interface Verified { t: RaceType; sec: number; d: number; src: VerSrc }
 export type ProfileKey = 'beginner' | 'regular' | 'fast';
 /** Como foi feito o treino de um dia. */
 export type How = 'real' | 'manual' | 'sim' | 'auto' | 'rest' | 'race' | 'miss';
@@ -229,6 +233,8 @@ export interface DaySummary {
   notes: string[];
   min: number;
   km: number;
+  /** O teto travou os ganhos de corrida deste treino. */
+  capped?: boolean;
 }
 
 export interface WeekSummary { week: number; season: number; load: number; fin: number; mine: number; goal: boolean; notes: string[] }
@@ -313,6 +319,12 @@ export interface GameState {
   streak: number;
   bestStreak: number;
   pb: Partial<Record<RaceType, number>>;
+  /** Último tempo verificado (corrida real) e o primeiro, para medir a evolução real. */
+  ver: Verified;
+  verFirst: Verified;
+  verLog: Verified[];
+  /** Dia do último teste declarado (o bónus do teste só conta uma vez por mês). */
+  lastTest?: number;
   /** Atividades reais já contadas (para não repetir). */
   realKeys: string[];
   realTotal: number;

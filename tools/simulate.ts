@@ -3,7 +3,7 @@
 import {
   EVENTS, PRESETS, SESS, SHOP, acceptOffer, addRealActivities, autoRace, buy, createAthlete, enterRace, finishRace,
   level, overall, pickTalent, plannedToday, predict, price, raceOffer, resolveEvent, setSeed, skipDay, talentPoints, TALENTS,
-  doToday, quitJob, restToday, finishLiveRace,
+  doToday, quitJob, restToday, finishLiveRace, gapPct, testDue, equivalent,
   type Cat, type GameState, type PresetName, type ProfileKey
 } from '../src/engine';
 
@@ -24,20 +24,30 @@ const POLICIES: Record<string, Policy> = {
 };
 const PROFILES: ProfileKey[] = ['beginner', 'regular', 'fast'];
 
-interface Career { ovr: number[]; t5: number[]; pct: number[]; injuries: number; lv: number; mundial: number; titles: number; money: number; pb5?: number; pb21?: number; xpWeek: number }
+interface Career { ver: number; gap: number; tests: number; ovr: number[]; t5: number[]; pct: number[]; injuries: number; lv: number; mundial: number; titles: number; money: number; pb5?: number; pb21?: number; xpWeek: number }
+
+const noon = (s: GameState) => (s.today * 864e5) + 12 * 3600e3 + new Date(s.today * 864e5).getTimezoneOffset() * 6e4;
+// Ritmo de cada sessão face ao ritmo de 10 km de quem treina a sério (a pessoa real evolui como o atleta).
+const PACE_OF: Partial<Record<string, number>> = { easy: 1.25, long: 1.28, tempo: 1.04, int: 1.08, hills: 1.15 };
 
 function act(s: GameState) {
   const k = plannedToday(s), S = SESS[k];
   if (k === 'rest') return null;
   const sport = S.run ? 'run' : k === 'str' ? 'str' : 'bike';
-  return { sport, start: (s.today * 864e5) + 12 * 3600e3 - new Date().getTimezoneOffset() * 6e4, sec: S.min * 60, km: S.run ? S.km : 0, hr: k === 'easy' || k === 'long' ? 140 : 168 } as const;
+  const p10 = predict(s.a, '10k') / 10;
+  const sec = S.run ? S.km * p10 * (PACE_OF[k] ?? 1.25) : S.min * 60;
+  return { sport, start: noon(s), sec, km: S.run ? S.km : 0, hr: k === 'easy' || k === 'long' ? 140 : 168 } as const;
 }
 
 function career(p: Policy, profile: ProfileKey, cat: Cat, seed: number): Career {
   setSeed(seed);
   const s = createAthlete({ name: 'Sim', cat, age: '38', city: 'X', club: 'pacos', start: 'preset', preset: profile }, null, DAY0);
   s.plan = PRESETS[p.plan].slice();
-  const c: Career = { ovr: [overall(s.a)], t5: [predict(s.a, '5k')], pct: [], injuries: 0, lv: 1, mundial: 0, titles: 0, money: 0, xpWeek: 0 };
+  // todos começam com um teste real de 5 km ao nível do perfil
+  s.ver = s.verFirst = { t: '5k', sec: Math.round(predict(s.a, '5k')), d: s.today, src: 'teste' };
+  const c0 = s.ver.sec;
+  let tests = 0;
+  const c: Career = { ver: 0, gap: 0, tests: 0, ovr: [overall(s.a)], t5: [predict(s.a, '5k')], pct: [], injuries: 0, lv: 1, mundial: 0, titles: 0, money: 0, xpWeek: 0 };
   for (let d = 0; d < WEEKS * 7; d++) {
     const dow = d % 7, inj = s.injury;
     const plays = p.mode === 'absent' ? false : p.mode === 'weekend' ? dow >= 5 : true;
@@ -65,7 +75,11 @@ function career(p: Policy, profile: ProfileKey, cat: Cat, seed: number): Career 
         if (r.id === 'mundial') c.mundial++;
         finishRace(s);
       } else if (!s.done) {
-        if (p.mode === 'real') { const a = act(s); if (a) addRealActivities(s, [a]); else restToday(s); }
+        if (p.mode === 'real' && testDue(s) && s.fatigue < 60) {
+          // teste mensal: a pessoa real corre o que o atleta vale (ela também treinou)
+          addRealActivities(s, [{ sport: 'run', start: noon(s), sec: predict(s.a, '5k') * 1.01, km: 5, hr: 182 }], [], { test: true });
+          tests++;
+        } else if (p.mode === 'real') { const a = act(s); if (a) addRealActivities(s, [a]); else restToday(s); }
         else if (s.fatigue > 70 && p.effort !== 'forte') restToday(s);
         else doToday(s, p.mode === 'manual' ? 'manual' : 'sim', p.effort);
       }
@@ -74,6 +88,7 @@ function career(p: Policy, profile: ProfileKey, cat: Cat, seed: number): Career 
     skipDay(s);
     if ((d + 1) % 84 === 0) { c.ovr.push(overall(s.a)); c.t5.push(predict(s.a, '5k')); }
   }
+  c.ver = equivalent(s.ver, '5k'); c.gap = gapPct(s); c.tests = tests; void c0;
   c.lv = level(s.xp);
   c.xpWeek = s.xp / WEEKS;
   c.titles = (s.titles ?? []).filter(t => t.startsWith('Campe')).length;
@@ -91,7 +106,7 @@ const pctOf = (x: number) => (Number.isNaN(x) ? '—' : Math.round(x * 100) + '%
 console.log(`${RUNS} carreiras por perfil e categoria, ${WEEKS} semanas (${WEEKS / 12} temporadas).\n`);
 for (const profile of PROFILES) {
   console.log(`\nPerfil: ${profile}`);
-  console.log(['estratégia', 'nota 0→12→24→36 sem.', '5 km previsto', 'lugar médio top%', 'lesões', 'nível', 'pontos/sem', 'Mundial', 'dinheiro'].join(' | '));
+  console.log(['estratégia', 'nota 0→12→24→36 sem.', '5 km previsto', '5 km verificado', 'jogo à frente', 'lugar médio top%', 'lesões', 'nível', 'pontos/sem', 'Mundial', 'dinheiro'].join(' | '));
   let seed = 1;
   for (const [name, p] of Object.entries(POLICIES)) {
     const cs: Career[] = [];
@@ -100,6 +115,8 @@ for (const profile of PROFILES) {
       name,
       [0, 1, 2, 3].map(i => r0(avg(cs.map(c => c.ovr[i]).filter(x => x != null)))).join('→'),
       [0, 3].map(i => mmss(avg(cs.map(c => c.t5[i]).filter(x => x != null)))).join('→'),
+      mmss(avg(cs.map(c => c.ver))),
+      pctOf(avg(cs.map(c => c.gap))),
       pctOf(avg(cs.flatMap(c => c.pct))),
       avg(cs.map(c => c.injuries)).toFixed(1),
       avg(cs.map(c => c.lv)).toFixed(1),

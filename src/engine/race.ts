@@ -7,6 +7,7 @@ import { ageGroup, clamp, fmt } from './format';
 import { ability, paceFor, segmentCost } from './perf';
 import { gauss, pick, random, shuffle } from './rng';
 import { rivalAfterRace, rivalPreRace } from './rival';
+import { enforceCap } from './verify';
 import type { AttrKey, Attrs, Entrant, Fam, GameState, LiveRace, Pace, PaceOption, RaceDef, RaceResult, ResultRow } from './types';
 import { rollWeather, weatherText } from './weather';
 import { form, has, myClub, raceName, season } from './world';
@@ -293,12 +294,13 @@ export function finishLiveRace(s: GameState): void {
   s.tl += rt.load;
   s.wk.load += rt.load;
   s.shoeKm += Math.round(DIST[r.t].km);
-  const gains: Partial<Attrs> = {};
+  const gains: Partial<Attrs> = {}, before = { ...s.a };
   for (const [at, g0] of Object.entries(RACE_GAINS[r.t]) as [AttrKey, number][]) {
     const g = g0 * Math.pow(1 - s.a[at] / 100, 1.2);
     s.a[at] = Math.min(99, s.a[at] + g);
     gains[at] = g;
   }
+  enforceCap(s, before, gains);
   s.moral = clamp(s.moral + (p <= N * 0.2 ? 8 : p > N * 0.6 ? -5 : 2) + (beatRival ? 5 : 0) + (pb ? 4 : 0), 0, 100);
   const rivalNm = riv?.nm ?? '';
   if (riv) rivalAfterRace(s, beatRival);

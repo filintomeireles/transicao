@@ -33,6 +33,12 @@ export const BAL = {
   streakEvery: 7, streakXp: 30,
   realStreakMin: 3,
 
+  // Ligação à realidade
+  /** O atleta do jogo pode ficar até 8% mais rápido do que o tempo verificado; acima disso só com um teste real. */
+  verCap: 0.08,
+  /** Dias entre testes propostos, pontos de um teste e de um novo tempo verificado. */
+  testEvery: 28, testXp: 60, realPbXp: 40,
+
   // Economia (por semana)
   living: 220, salary: 300, fameKeep: 0.97,
   clubPay: [0, 40, 20, 10] as readonly number[],

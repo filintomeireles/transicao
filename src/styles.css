@@ -394,3 +394,22 @@ button.talent:disabled { opacity: .5; cursor: default; }
 .pbs small { display: block; font-size: 10.5px; color: var(--muted); }
 .card.hero .pbs div { background: rgba(255, 255, 255, .08); }
 .done-banner { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 14px; background: var(--good-bg); color: var(--good); font-weight: 700; }
+
+/* O jogo e a realidade */
+.twotimes { display: flex; flex-direction: column; gap: 8px; }
+.tt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tt { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--r); background: var(--soft); }
+.tt b { font: 700 24px var(--display); }
+.tt small { color: var(--muted); font-size: 12px; }
+.gapbar { position: relative; height: 12px; margin: 6px 4px 0; border-radius: 6px; background: var(--soft); }
+.gapbar .zone { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.gapbar .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); border-radius: 1px; }
+.gapbar .tick.cap { background: var(--gold); }
+.gapbar .dot { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--accent); border: 2px solid var(--card); box-shadow: 0 1px 3px rgb(0 0 0 / .25); transition: left .6s ease; }
+.gapbar .dot.at { background: var(--gold); }
+.cmp { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: var(--r); background: var(--soft); }
+.times { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.times input[aria-invalid="true"] { border-color: var(--bad); }
+.test-card { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); }
+.gaplbl { position: relative; height: 18px; margin: 0 4px; }
+.gaplbl span { position: absolute; transform: translateX(-50%); white-space: nowrap; }

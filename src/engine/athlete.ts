@@ -3,7 +3,8 @@ import { dayNumber, mondayOf } from './clock';
 import { ATTR_KEYS, CALENDAR, CLUBS, FILINTO, FIRST_NAMES, LAST_NAMES, OTHER_CLUBS, PRESETS, PROFILES } from './data';
 import { ageGroup, clamp } from './format';
 import type { ImportSummary } from './import/activities';
-import { overall } from './perf';
+import { overall, predict } from './perf';
+import { calibrate, unverified, type RealTime } from './verify';
 import { gauss, pick, random, rnd } from './rng';
 import type { Attrs, Cat, ClubMember, GameState, ProfileKey, RaceType, SessionKey, StartKind } from './types';
 
@@ -17,14 +18,18 @@ export interface NewAthlete {
   club: string;
   start: StartKind;
   preset: ProfileKey;
+  /** Tempos reais escritos por ti (arranque 'tempo'). */
+  times?: RealTime[];
 }
 
-export function validateNewAthlete(o: NewAthlete, imp: ImportSummary | null): Partial<Record<'name' | 'age' | 'files', string>> {
-  const err: Partial<Record<'name' | 'age' | 'files', string>> = {};
+export function validateNewAthlete(o: NewAthlete, imp: ImportSummary | null): Partial<Record<'name' | 'age' | 'files' | 'times', string>> {
+  const err: Partial<Record<'name' | 'age' | 'files' | 'times', string>> = {};
   const age = parseInt(o.age, 10);
   if (!o.name.trim()) err.name = 'Escreve o nome do atleta.';
   if (!(age >= 18 && age <= 80)) err.age = 'A idade tem de estar entre 18 e 80.';
   if (o.start === 'files' && !(imp && imp.n)) err.files = 'Importa pelo menos um treino, ou escolhe outro ponto de partida.';
+  if (o.start === 'files' && imp && imp.n && !imp.best) err.files = 'Nenhuma corrida entre 3 e 45 km nestes ficheiros: precisamos de uma para medir o teu ritmo.';
+  if (o.start === 'tempo' && !o.times?.length) err.times = 'Escreve pelo menos um tempo, por exemplo 5 km em 24:30.';
   return err;
 }
 
@@ -39,12 +44,24 @@ export function createAthlete(o: NewAthlete, imp: ImportSummary | null, today = 
   } else if (o.start === 'files' && imp) {
     a = { ...imp.a }; ctl = atl = imp.ctl; fatigue = imp.fatigue; shoeKm = 300;
     gear = [['Sapatilhas de treino', '300 km'], ['Relógio', 'do teu relógio ou app']];
+  } else if (o.start === 'tempo' && o.times?.length) {
+    a = calibrate(PROFILES.regular.a, o.times);
+    ctl = atl = 18 + overall(a) * 0.5;
   } else {
     a = { ...PROFILES[o.preset].a }; plan = PRESETS[PROFILES[o.preset].plan].slice();
     ctl = atl = 18 + overall(a) * 0.5;
   }
   // Os perfis prontos e o exemplo são ritmos masculinos: na categoria feminina correm mais devagar.
-  if (o.cat === 'F' && o.start !== 'files') for (const k of ATTR_KEYS) if (k !== 'men' && k !== 'str') a[k] -= BAL.fOffset;
+  if (o.cat === 'F' && (o.start === 'preset' || o.start === 'filinto')) for (const k of ATTR_KEYS) if (k !== 'men' && k !== 'str') a[k] -= BAL.fOffset;
+
+  // O tempo verificado: o tempo real com que o atleta do jogo se compara.
+  let ver = unverified(a, today);
+  if (o.start === 'filinto') ver = { t: '5k', sec: FILINTO.pb['5k'] ?? Math.round(predict(a, '5k')), d: today, src: 'strava' };
+  else if (o.start === 'files' && imp?.best) ver = { ...imp.best, d: today, src: 'ficheiro' };
+  else if (o.start === 'tempo' && o.times?.length) {
+    const t = o.times.reduce((b, x) => (x.t === '5k' ? x : b), o.times[0]);
+    ver = { ...t, d: today, src: 'declarado' };
+  }
 
   const club = CLUBS.find(c => c.id === o.club) ?? CLUBS[0];
   const members: ClubMember[] = [];
@@ -78,7 +95,7 @@ export function createAthlete(o: NewAthlete, imp: ImportSummary | null, today = 
     }],
     results: [], race: null, last: null, lastWeek: null, days: [],
     wk: { load: 0, mine: 0, real: 0, club: false, z2: 0 },
-    xp: 0, talents: [], streak: 0, bestStreak: 0, pb,
+    xp: 0, talents: [], streak: 0, bestStreak: 0, pb, ver, verFirst: ver, verLog: ver.src === 'perfil' ? [] : [ver],
     realKeys: [], realTotal: 0, realStreak: 0, realBest: 0, clubEvents: 0, clubKit: 0
   };
   return s;

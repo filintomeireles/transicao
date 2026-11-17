@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { dayNumber, syncToday, type GameState } from '../engine';
+import { dayNumber, migrate, syncToday, type GameState } from '../engine';
 import { demoGame } from './demo';
 
 // Nova chave: a versão de corrida diária não lê as carreiras de triatlo semanais.
@@ -15,6 +15,7 @@ function load(): GameState | null {
     const raw = localStorage.getItem(KEY);
     const s = raw ? (JSON.parse(raw) as GameState) : null;
     if (!s || s.v !== 4) return null;
+    migrate(s);
     syncToday(s, dayNumber());
     return s;
   } catch {

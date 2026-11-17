@@ -1,6 +1,6 @@
 import { SESS } from '../data';
 import { clamp } from '../format';
-import { abilityFromPace } from '../perf';
+import { bestEffort, calibrate, type RealTime } from '../verify';
 import type { Activity, Attrs, SessionKey } from '../types';
 import { parseFIT } from './fit';
 import { parseGPX, parseTCX } from './xml';
@@ -50,23 +50,25 @@ export interface ImportSummary {
   sports: { run: number; other: number };
   errs?: string[];
   sample?: boolean;
+  /** A corrida que mostra mais capacidade, convertida na distância de prova mais próxima. */
+  best?: RealTime | null;
 }
 
 /** Calibra um atleta novo a partir de várias semanas de corridas reais. */
 export function attrsFromActs(acts: Activity[]): ImportSummary {
   const runs = acts.filter(a => a.sport === 'run' && a.km >= 3);
-  const a: Attrs = { spd: 40, thr: 38, end: 35, str: 36, men: 60 };
-  if (runs.length) {
-    // o treino mais rápido por km, convertido em ritmo de prova de 10 km
-    const best = Math.min(...runs.map(r => r.sec / r.km)) * 0.95;
-    const ab = clamp(abilityFromPace(best, '10k'), 15, 92);
-    a.spd = ab + 1;
-    a.thr = ab;
+  // A melhor corrida (a mais rápida para a distância) dá o tempo verificado e calibra o atleta por ele.
+  const best = bestEffort(runs);
+  let a: Attrs = { spd: 40, thr: 38, end: 35, str: 36, men: 60 };
+  if (best) {
+    a = calibrate({ spd: 50, thr: 50, end: 50, str: 36, men: 60 }, [best]);
+    // quem faz longões compridos tem mais resistência do que a corrida rápida mostra
     const longest = Math.max(...runs.map(r => r.km));
-    a.end = clamp(ab - 14 + longest * 0.9, 15, 92);
+    a.end = clamp(a.end + (longest - 14) * 0.5, 10, 97);
+    a.spd = clamp(a.spd - (longest - 14) * 0.15, 10, 97);
+    a = calibrate(a, [best]); // volta a acertar o tempo da melhor corrida
   }
   a.str = clamp(36 + acts.filter(x => x.sport === 'str').length, 20, 80);
-  for (const k of Object.keys(a) as (keyof Attrs)[]) a[k] = Math.round(a[k]);
 
   const starts = acts.map(x => x.start).filter((x): x is number => x != null);
   const days = starts.length ? Math.max(7, (Math.max(...starts) - Math.min(...starts)) / 864e5) : 28;
@@ -79,7 +81,8 @@ export function attrsFromActs(acts: Activity[]): ImportSummary {
     ctl: clamp(total / days, 15, 90),
     fatigue: clamp(recent * 0.1, 10, 70),
     n: acts.length,
-    sports: { run: runs.length, other: acts.length - runs.length }
+    sports: { run: runs.length, other: acts.length - runs.length },
+    best
   };
 }
 
